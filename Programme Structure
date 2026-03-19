@@ -1,0 +1,31 @@
+🔜 Prochaines étapes recommandées
+Amélioration de l’interface utilisateur
+
+Ajouter une barre de navigation latérale avec le nom de l’utilisateur et la déconnexion.
+
+Créer un tableau de bord avec des statistiques (nombre de clients, produits, factures en cours, montant total).
+
+Intégrer des notifications (react-hot-toast) pour les actions réussies.
+
+Génération de l’APK Android
+
+bash
+cd mobile
+npx cap copy
+npx cap sync
+npx cap open android
+Puis dans Android Studio, générez un APK signé ou un bundle.
+
+Fonctionnalités avancées
+
+Ajout de rapports et statistiques (graphiques avec Chart.js).
+
+Pagination et recherche sur les listes.
+
+Export des données en CSV/Excel.
+
+Déploiement
+
+Backend : sur un serveur (ex. DigitalOcean) avec PM2 et Nginx.
+
+Frontend : build statique servi par Nginx ou hébergé sur Netlify/Vercel.
