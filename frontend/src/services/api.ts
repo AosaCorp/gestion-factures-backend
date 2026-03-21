@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://gestion-factures-backend-4joy.onrender.com/api', // ← votre IP locale (vérifiée)
+  baseURL: 'https://gestion-factures-backend-1-0879.onrender.com/api', // ← votre IP locale (vérifiée)
   timeout: 10000,
 });
 
