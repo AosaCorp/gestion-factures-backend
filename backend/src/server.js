@@ -4,7 +4,6 @@ const { User } = require('./models');
 
 const PORT = process.env.PORT || 5001;
 
-// Fonction pour créer un admin par défaut si aucun n'existe
 async function createAdminIfNotExists() {
   try {
     const adminExists = await User.findOne({ where: { role: 'admin' } });
@@ -24,11 +23,10 @@ async function createAdminIfNotExists() {
   }
 }
 
-// Synchronisation de la base de données, puis création de l'admin
 sequelize.sync({ alter: true })
   .then(async () => {
     console.log('✅ Base de données synchronisée');
-    await createAdminIfNotExists(); // ← maintenant les tables existent
+    await createAdminIfNotExists();
   })
   .catch(err => console.error('❌ Erreur synchro DB:', err));
 
