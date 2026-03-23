@@ -5,9 +5,8 @@ const qrcode = require('qrcode');
 const { User } = require('../models');
 
 const generateToken = (id, role) => {
-  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE
-  });
+  const expiresIn = process.env.JWT_EXPIRE || '7d'; // Valeur par défaut
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn });
 };
 
 // @desc    Inscription d'un utilisateur (admin seulement)
