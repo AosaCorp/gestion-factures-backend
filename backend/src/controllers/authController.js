@@ -37,8 +37,8 @@ const register = async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const login = async (req, res) => {
-  console.log('➡️  login route atteinte avec body:', req.body);
   try {
+    console.log('➡️ login route atteinte avec body:', req.body);
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ message: 'Email et mot de passe requis' });
@@ -56,6 +56,11 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Identifiants incorrects' });
     }
 
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET non défini dans l\'environnement !');
+      return res.status(500).json({ message: 'Erreur de configuration serveur' });
+    }
+
     if (user.twoFactorEnabled) {
       const tempToken = jwt.sign(
         { id: user.id, twoFactorPending: true },
@@ -65,10 +70,6 @@ const login = async (req, res) => {
       console.log('✅ 2FA requis, tempToken généré');
       return res.json({ twoFactorRequired: true, tempToken });
     }
-
-    // Mettre à jour la dernière connexion
-    user.lastLogin = new Date();
-    await user.save();
 
     const token = generateToken(user.id, user.role);
     console.log('✅ Login réussi pour:', email);
@@ -82,8 +83,8 @@ const login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Erreur login:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('❌ Erreur login (détail):', error);
+    res.status(500).json({ message: 'Erreur serveur', detail: error.message });
   }
 };
 
