@@ -5,6 +5,8 @@ import { clientService, Client } from '../services/clientService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiDownload } from 'react-icons/fi';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -63,14 +65,42 @@ const InvoiceDetail: React.FC = () => {
     }
   };
 
+  // Nouvelle fonction pour gérer le PDF
   const handleDownloadPdf = async () => {
+    if (!invoice) return;
+
     try {
-      const blob = await invoiceService.getPdf(parseInt(id!));
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `facture-${invoice?.number}.pdf`;
-      a.click();
+      // 1. Récupérer le blob du PDF
+      const blob = await invoiceService.getPdf(invoice.id);
+      
+      // 2. Convertir le blob en base64
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        const fileName = `facture-${invoice.number}.pdf`;
+        
+        // 3. Sauvegarder le fichier dans le stockage local de l'application
+        await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Documents,
+        });
+        
+        // 4. Proposer de partager le fichier (ou de l'ouvrir)
+        await Share.share({
+          title: 'Facture',
+          text: `Facture ${invoice.number}`,
+          url: `file://${fileName}`,
+        });
+        
+        toast.success('PDF prêt à être partagé');
+      };
+      
+      reader.onerror = () => {
+        toast.error('Erreur lors de la lecture du PDF');
+      };
     } catch (error) {
       console.error('Erreur téléchargement PDF', error);
       toast.error('Erreur lors du téléchargement');
@@ -222,7 +252,7 @@ const InvoiceDetail: React.FC = () => {
                   value={paymentMethod}
                   onChange={(e) => {
                     setPaymentMethod(e.target.value as any);
-                    setTransactionId(''); // reset transaction id
+                    setTransactionId('');
                   }}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                 >

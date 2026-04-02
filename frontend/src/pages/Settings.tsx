@@ -30,19 +30,19 @@ const Settings: React.FC = () => {
   }, []);
 
   const fetchCompany = async () => {
-    try {
-      const data = await companyService.get();
-      setCompany(data);
-      if (data.logo) {
-        setLogoPreview(`http://127.0.0.1:5001/${data.logo}`);
-      }
-    } catch (error) {
-      toast.error('Erreur chargement');
-    } finally {
-      setLoading(false);
+  try {
+    const data = await companyService.get();
+    setCompany(data);
+    if (data.logo) {
+      const base = api.defaults.baseURL?.replace('/api', '') || '';
+      setLogoPreview(`${base}/uploads/${data.logo}`);
     }
-  };
-
+  } catch (error) {
+    toast.error('Erreur chargement');
+  } finally {
+    setLoading(false);
+  }
+};
   const fetchSystemInfo = async () => {
     try {
       const users = await userService.getAll();

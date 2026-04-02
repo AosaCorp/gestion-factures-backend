@@ -1,8 +1,18 @@
 const app = require('./app');
 const sequelize = require('./config/database');
 const { User } = require('./models');
+const fs = require('fs');
+const path = require('path');
 
 const PORT = process.env.PORT || 5001;
+
+// Créer le dossier uploads s'il n'existe pas
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('✅ Dossier uploads créé');
+}
+
 
 async function createAdminIfNotExists() {
   try {

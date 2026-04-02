@@ -5,8 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiSearch, FiFilter, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
-import Papa from 'papaparse';
-import api from '../services/api';
+import { exportToCSV } from '../services/exportService';
+import api from '../services/api'; // ← ajout
 
 const Invoices: React.FC = () => {
   const { user } = useAuth();
@@ -89,6 +89,19 @@ const Invoices: React.FC = () => {
     }
   };
 
+  const handleDownloadPdf = async (id: number) => {
+    try {
+      const blob = await invoiceService.getPdf(id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `facture-${id}.pdf`;
+      a.click();
+    } catch (error) {
+      toast.error('Erreur téléchargement PDF');
+    }
+  };
+
   const handleExport = async () => {
     try {
       const allInvoices = await invoiceService.getAll();
@@ -104,16 +117,7 @@ const Invoices: React.FC = () => {
         statut: inv.status === 'draft' ? 'En attente' : inv.status === 'paid' ? 'Payée' : 'Annulée',
         date_paiement: inv.paidAt ? new Date(inv.paidAt).toLocaleDateString('fr-FR') : ''
       }));
-      const csv = Papa.unparse(dataForExport);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.href = url;
-      link.setAttribute('download', 'factures.csv');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      await exportToCSV(dataForExport, 'factures');
       toast.success('Export réussi');
     } catch (error) {
       console.error('Erreur export', error);
@@ -124,19 +128,6 @@ const Invoices: React.FC = () => {
   const getPaidAmount = (invoice: Invoice) => {
     return invoice.Payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
   };
-  
- const handleDownloadPdf = async (id: number) => {
-  try {
-    const blob = await invoiceService.getPdf(id);
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `facture-${id}.pdf`;
-    a.click();
-  } catch (error) {
-    toast.error('Erreur téléchargement PDF');
-  }
-};
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -217,7 +208,7 @@ const Invoices: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payé</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
+                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {invoices.map((invoice) => {
@@ -234,27 +225,27 @@ const Invoices: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">{paid.toLocaleString()} FCFA</td>
                       <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(invoice.status)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-  <Link to={`/invoices/${invoice.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
-    <FiEye className="inline" />
+                        <Link to={`/invoices/${invoice.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
+  <FiEye className="inline text-xl" />
+</Link>
+<button
+  onClick={() => handleDownloadPdf(invoice.id)}
+  className="text-purple-600 hover:text-purple-900 mr-3"
+  title="Télécharger PDF"
+>
+  <FiDownload className="inline text-xl" />
+</button>
+{invoice.status === 'draft' && (user?.role === 'cashier' || user?.role === 'admin') && (
+  <Link to={`/invoices/edit/${invoice.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
+    <FiEdit className="inline text-xl" />
   </Link>
-  <button
-    onClick={() => handleDownloadPdf(invoice.id)}
-    className="text-purple-600 hover:text-purple-900 mr-3"
-    title="Télécharger PDF"
-  >
-    <FiDownload className="inline" />
-  </button>
-  {invoice.status === 'draft' && (user?.role === 'cashier' || user?.role === 'admin') && (
-    <Link to={`/invoices/edit/${invoice.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
-      <FiEdit className="inline" />
-    </Link>
-  )}
-  {invoice.status === 'draft' && user?.role === 'admin' && (
-    <button onClick={() => handleCancel(invoice.id)} className="text-red-600 hover:text-red-900" title="Annuler">
-      <FiTrash2 className="inline" />
-    </button>
-  )}
-</td>
+)}
+{invoice.status === 'draft' && user?.role === 'admin' && (
+  <button onClick={() => handleCancel(invoice.id)} className="text-red-600 hover:text-red-900" title="Annuler">
+    <FiTrash2 className="inline text-xl" />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

@@ -35,6 +35,14 @@ exports.uploadLogo = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'Aucun fichier envoyé' });
     }
+    
+     // Vérifier que le dossier uploads existe
+    const uploadDir = path.join(__dirname, '../../uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    
     const filePath = req.file.path;
     let company = await Company.findOne();
     if (!company) {

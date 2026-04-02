@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom';
 import { productService, Product } from '../services/productService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiSearch, FiDownload, FiEdit, FiTrash2, FiEye } from 'react-icons/fi';
+import { FiSearch, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
-import Papa from 'papaparse';
-
+import { exportToCSV } from '../services/exportService';
 const Products: React.FC = () => {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -87,33 +86,24 @@ const Products: React.FC = () => {
   };
 
   const handleExport = async () => {
-    try {
-      const allProducts = await productService.getAll();
-      const dataForExport = allProducts.map(p => ({
-        Nom: p.name,
-        Description: p.description || '',
-        Type: p.description === 'service' ? 'Service' : 'Produit',
-        'Prix HT': p.price,
-        'TVA (%)': p.taxRate,
-        'Prix TTC': Math.round(p.price * (1 + p.taxRate/100)),
-        'Date création': new Date(p.createdAt).toLocaleDateString('fr-FR')
-      }));
-      const csv = Papa.unparse(dataForExport);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.href = url;
-      link.setAttribute('download', 'produits.csv');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      toast.success('Export réussi');
-    } catch (error) {
-      console.error('Erreur export', error);
-      toast.error('Erreur lors de l\'export');
-    }
-  };
+  try {
+    const allProducts = await productService.getAll();
+    const dataForExport = allProducts.map(p => ({
+      Nom: p.name,
+      Description: p.description || '',
+      Type: p.description === 'service' ? 'Service' : 'Produit',
+      'Prix HT': p.price,
+      'TVA (%)': p.taxRate,
+      'Prix TTC': Math.round(p.price * (1 + p.taxRate/100)),
+      'Date création': new Date(p.createdAt).toLocaleDateString('fr-FR')
+    }));
+    await exportToCSV(dataForExport, 'produits');
+    toast.success('Export réussi');
+  } catch (error) {
+    console.error('Erreur export', error);
+    toast.error('Erreur lors de l\'export');
+  }
+};
 
   const filteredProducts = products.filter(p => {
     if (typeFilter === 'product') return p.description !== 'service';

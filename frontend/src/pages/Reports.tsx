@@ -19,6 +19,9 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Papa from 'papaparse';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import api from '../services/api';
 
 ChartJS.register(
   CategoryScale,
@@ -114,8 +117,8 @@ const Reports: React.FC = () => {
     }
   };
 
-  // Fonction générique pour exporter en CSV
-  const exportToCSV = () => {
+  // Export CSV (utilise Capacitor)
+  const exportToCSV = async () => {
     let data: any[] = [];
     let filename = 'rapport';
     if (activeTab === 'sales' && salesData) {
@@ -159,20 +162,27 @@ const Reports: React.FC = () => {
       return;
     }
 
-    const csv = Papa.unparse(data);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success('Export CSV réussi');
+    try {
+      const csv = Papa.unparse(data);
+      const fileName = `${filename}.csv`;
+      await Filesystem.writeFile({
+        path: fileName,
+        data: csv,
+        directory: Directory.Documents,
+      });
+      await Share.share({
+        title: 'Export CSV',
+        text: `Fichier ${fileName}`,
+        url: `file://${fileName}`,
+      });
+      toast.success('Export CSV réussi');
+    } catch (error) {
+      console.error('Erreur export CSV', error);
+      toast.error('Erreur lors de l\'export');
+    }
   };
 
-  // Fonction pour exporter en PDF avec logo
+  // Export PDF (utilise Capacitor)
   const exportToPDF = async () => {
     if (!company) {
       toast.error('Informations entreprise non chargées');
@@ -182,10 +192,11 @@ const Reports: React.FC = () => {
     const doc = new jsPDF();
     let y = 20;
 
-    // Logo et informations entreprise
+    // Logo
     if (company.logo) {
       try {
-        const logoUrl = `http://127.0.0.1:5001/${company.logo}`;
+        const base = api.defaults.baseURL?.replace('/api', '') || '';
+        const logoUrl = `${base}/uploads/${company.logo}`;
         const logoImg = await fetch(logoUrl).then(res => res.blob());
         const reader = new FileReader();
         reader.readAsDataURL(logoImg);
@@ -260,9 +271,31 @@ const Reports: React.FC = () => {
       return;
     }
 
-    doc.save(`rapport_${activeTab}.pdf`);
-    toast.success('Export PDF réussi');
+    const pdfData = doc.output('blob');
+    const reader = new FileReader();
+    reader.readAsDataURL(pdfData);
+    reader.onloadend = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const fileName = `rapport_${activeTab}.pdf`;
+      try {
+        await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Documents,
+        });
+        await Share.share({
+          title: 'Export PDF',
+          text: `Fichier ${fileName}`,
+          url: `file://${fileName}`,
+        });
+        toast.success('Export PDF réussi');
+      } catch (error) {
+        console.error('Erreur sauvegarde PDF', error);
+        toast.error('Erreur lors de l\'export');
+      }
+    };
   };
+
 
   // Rendu des graphiques pour chaque onglet (similaire à avant, mais avec chartType)
   const renderSalesTab = () => (
@@ -590,7 +623,7 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Onglets */}
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex space-x-8">
           {(['sales', 'products', 'clients', 'payments'] as ReportType[]).map(tab => (

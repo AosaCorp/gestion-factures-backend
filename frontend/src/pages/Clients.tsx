@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { clientService, Client } from '../services/clientService';
-import { invoiceService } from '../services/invoiceService';
+import { invoiceService } from '../services/invoiceService'; // ← ajout
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiSearch, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
-import Papa from 'papaparse';
+import { exportToCSV } from '../services/exportService';
 
 const Clients: React.FC = () => {
   const { user } = useAuth();
@@ -22,13 +22,11 @@ const Clients: React.FC = () => {
     try {
       setLoading(true);
       const data = await clientService.getAll();
-      // Filtrer par recherche
       const filtered = data.filter(c => 
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         (c.email && c.email.toLowerCase().includes(search.toLowerCase())) ||
         (c.phone && c.phone.includes(search))
       );
-      // Pagination
       const start = (page - 1) * limit;
       const paginated = filtered.slice(start, start + limit);
       setClients(paginated);
@@ -94,28 +92,15 @@ const Clients: React.FC = () => {
   const handleExport = async () => {
     try {
       const allClients = await clientService.getAll();
-      const dataForExport = allClients.map(c => {
-        const stats = clientStats.get(c.id) || { totalSpent: 0, invoiceCount: 0 };
-        return {
-          'Code client': `CLI${c.id}`,
-          'Nom & Prénom': c.name,
-          'Email': c.email || '',
-          'Téléphone': c.phone || '',
-          'Total achats (FCFA)': stats.totalSpent,
-          'Nombre factures': stats.invoiceCount,
-          'Date inscription': new Date(c.createdAt).toLocaleDateString('fr-FR')
-        };
-      });
-      const csv = Papa.unparse(dataForExport);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.href = url;
-      link.setAttribute('download', 'clients.csv');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const dataForExport = allClients.map(c => ({
+        'Code client': `CLI${c.id}`,
+        'Nom & Prénom': c.name,
+        'Email': c.email || '',
+        'Téléphone': c.phone || '',
+        'Adresse': c.address || '',
+        'Date inscription': new Date(c.createdAt).toLocaleDateString('fr-FR')
+      }));
+      await exportToCSV(dataForExport, 'clients');
       toast.success('Export réussi');
     } catch (error) {
       console.error('Erreur export', error);
@@ -169,7 +154,7 @@ const Clients: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total achats</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date inscription</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
+                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {clients.map(client => {
