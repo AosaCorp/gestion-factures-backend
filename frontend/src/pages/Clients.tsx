@@ -168,7 +168,7 @@ const Clients: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">{stats.totalSpent.toLocaleString()} FCFA</td>
                       <td className="px-6 py-4 whitespace-nowrap">{new Date(client.createdAt).toLocaleDateString('fr-FR')}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        // Dans la colonne Actions, remplacer les icônes par :
+                        
 <Link to={`/clients/${client.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
   <FiEye className="inline text-xl" />
 </Link>
