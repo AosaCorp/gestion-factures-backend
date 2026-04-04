@@ -228,11 +228,7 @@ const Invoices: React.FC = () => {
                         <Link to={`/invoices/${invoice.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
   <FiEye className="inline text-xl" />
 </Link>
-<button
-  onClick={() => handleDownloadPdf(invoice.id)}
-  className="text-purple-600 hover:text-purple-900 mr-3"
-  title="Télécharger PDF"
->
+<button onClick={() => handleDownloadPdf(invoice.id)} className="text-purple-600 hover:text-purple-900 mr-3" title="Télécharger PDF">
   <FiDownload className="inline text-xl" />
 </button>
 {invoice.status === 'draft' && (user?.role === 'cashier' || user?.role === 'admin') && (
@@ -243,8 +239,8 @@ const Invoices: React.FC = () => {
 {invoice.status === 'draft' && user?.role === 'admin' && (
   <button onClick={() => handleCancel(invoice.id)} className="text-red-600 hover:text-red-900" title="Annuler">
     <FiTrash2 className="inline text-xl" />
-                          </button>
-                        )}
+  </button>
+)}
                       </td>
                     </tr>
                   );

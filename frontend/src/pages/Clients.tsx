@@ -168,19 +168,20 @@ const Clients: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">{stats.totalSpent.toLocaleString()} FCFA</td>
                       <td className="px-6 py-4 whitespace-nowrap">{new Date(client.createdAt).toLocaleDateString('fr-FR')}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link to={`/clients/${client.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
-                          <FiEye className="inline" />
-                        </Link>
-                        {(user?.role === 'cashier' || user?.role === 'admin') && (
-                          <>
-                            <Link to={`/clients/edit/${client.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
-                              <FiEdit className="inline" />
-                            </Link>
-                            <button onClick={() => handleDelete(client.id)} className="text-red-600 hover:text-red-900" title="Supprimer">
-                              <FiTrash2 className="inline" />
-                            </button>
-                          </>
-                        )}
+                        // Dans la colonne Actions, remplacer les icônes par :
+<Link to={`/clients/${client.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
+  <FiEye className="inline text-xl" />
+</Link>
+{(user?.role === 'cashier' || user?.role === 'admin') && (
+  <>
+    <Link to={`/clients/edit/${client.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
+      <FiEdit className="inline text-xl" />
+    </Link>
+    <button onClick={() => handleDelete(client.id)} className="text-red-600 hover:text-red-900" title="Supprimer">
+      <FiTrash2 className="inline text-xl" />
+    </button>
+  </>
+)}
                       </td>
                     </tr>
                   );

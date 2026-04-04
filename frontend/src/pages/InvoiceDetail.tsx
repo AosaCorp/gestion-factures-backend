@@ -5,8 +5,7 @@ import { clientService, Client } from '../services/clientService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiDownload } from 'react-icons/fi';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
+import { Browser } from '@capacitor/browser';
 
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -65,45 +64,16 @@ const InvoiceDetail: React.FC = () => {
     }
   };
 
-  // Nouvelle fonction pour gérer le PDF
   const handleDownloadPdf = async () => {
     if (!invoice) return;
-
     try {
-      // 1. Récupérer le blob du PDF
-      const blob = await invoiceService.getPdf(invoice.id);
-      
-      // 2. Convertir le blob en base64
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      
-      reader.onloadend = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        const fileName = `facture-${invoice.number}.pdf`;
-        
-        // 3. Sauvegarder le fichier dans le stockage local de l'application
-        await Filesystem.writeFile({
-          path: fileName,
-          data: base64,
-          directory: Directory.Documents,
-        });
-        
-        // 4. Proposer de partager le fichier (ou de l'ouvrir)
-        await Share.share({
-          title: 'Facture',
-          text: `Facture ${invoice.number}`,
-          url: `file://${fileName}`,
-        });
-        
-        toast.success('PDF prêt à être partagé');
-      };
-      
-      reader.onerror = () => {
-        toast.error('Erreur lors de la lecture du PDF');
-      };
+      const token = localStorage.getItem('token');
+      const url = `https://gestion-factures-backend-2.onrender.com/api/invoices/${invoice.id}/pdf?token=${token}`;
+      await Browser.open({ url });
+      toast.success('Ouverture du PDF...');
     } catch (error) {
       console.error('Erreur téléchargement PDF', error);
-      toast.error('Erreur lors du téléchargement');
+      toast.error('Erreur lors de l\'ouverture');
     }
   };
 
@@ -114,20 +84,14 @@ const InvoiceDetail: React.FC = () => {
   const remaining = invoice.total - totalPaid;
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="px-4 py-6 max-w-4xl">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Facture {invoice.number}</h1>
         <div>
-          <button
-            onClick={handleDownloadPdf}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mr-2 flex items-center"
-          >
+          <button onClick={handleDownloadPdf} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mr-2 flex items-center">
             <FiDownload className="mr-2" /> PDF
           </button>
-          <button
-            onClick={() => navigate(-1)}
-            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
-          >
+          <button onClick={() => navigate(-1)} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
             Retour
           </button>
         </div>
@@ -147,71 +111,70 @@ const InvoiceDetail: React.FC = () => {
 
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Articles</h2>
-        <table className="min-w-full">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-2">Description</th>
-              <th className="text-right py-2">Qté</th>
-              <th className="text-right py-2">Prix unitaire</th>
-              <th className="text-right py-2">TVA %</th>
-              <th className="text-right py-2">Total TTC</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoice.items.map((item, idx) => (
-              <tr key={idx} className="border-b">
-                <td className="py-2">{item.description || 'Produit'}</td>
-                <td className="text-right py-2">{item.quantity}</td>
-                <td className="text-right py-2">{item.unitPrice?.toLocaleString()} F</td>
-                <td className="text-right py-2">{item.taxRate}%</td>
-                <td className="text-right py-2">{item.total?.toLocaleString()} F</td>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-2">Description</th>
+                <th className="text-right py-2">Qté</th>
+                <th className="text-right py-2">Prix unitaire</th>
+                <th className="text-right py-2">TVA %</th>
+                <th className="text-right py-2">Total TTC</th>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={4} className="text-right font-medium py-2">Sous-total HT</td>
-              <td className="text-right py-2">{invoice.subtotal.toLocaleString()} F</td>
-            </tr>
-            <tr>
-              <td colSpan={4} className="text-right font-medium py-2">TVA</td>
-              <td className="text-right py-2">{invoice.taxTotal.toLocaleString()} F</td>
-            </tr>
-            <tr>
-              <td colSpan={4} className="text-right font-bold py-2">TOTAL TTC</td>
-              <td className="text-right font-bold py-2">{invoice.total.toLocaleString()} F</td>
-            </tr>
-          </tfoot>
-        </table>
+            </thead>
+            <tbody>
+              {invoice.items.map((item, idx) => (
+                <tr key={idx} className="border-b">
+                  <td className="py-2">{item.description || 'Produit'}</td>
+                  <td className="text-right py-2">{item.quantity}</td>
+                  <td className="text-right py-2">{item.unitPrice?.toLocaleString()} F</td>
+                  <td className="text-right py-2">{item.taxRate}%</td>
+                  <td className="text-right py-2">{item.total?.toLocaleString()} F</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr><td colSpan={4} className="text-right font-medium py-2">Sous-total HT</td>
+                <td className="text-right py-2">{invoice.subtotal.toLocaleString()} F</td>
+              </tr>
+              <tr><td colSpan={4} className="text-right font-medium py-2">TVA</td>
+                <td className="text-right py-2">{invoice.taxTotal.toLocaleString()} F</td>
+              </tr>
+              <tr><td colSpan={4} className="text-right font-bold py-2">TOTAL TTC</td>
+                <td className="text-right font-bold py-2">{invoice.total.toLocaleString()} F</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
 
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Paiements</h2>
         {payments.length > 0 ? (
-          <table className="min-w-full mb-4">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Date</th>
-                <th className="text-right py-2">Montant</th>
-                <th className="text-left py-2">Méthode</th>
-                <th className="text-left py-2">Transaction</th>
-                <th className="text-left py-2">Reçu par</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map(p => (
-                <tr key={p.id} className="border-b">
-                  <td className="py-2">{new Date(p.createdAt).toLocaleDateString()}</td>
-                  <td className="text-right py-2">{p.amount.toLocaleString()} F</td>
-                  <td className="py-2">
-                    {p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}
-                  </td>
-                  <td className="py-2">{p.transactionId || '-'}</td>
-                  <td className="py-2">{p.receiver?.name || '-'}</td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full mb-4">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2">Date</th>
+                  <th className="text-right py-2">Montant</th>
+                  <th className="text-left py-2">Méthode</th>
+                  <th className="text-left py-2">Transaction</th>
+                  <th className="text-left py-2">Reçu par</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {payments.map(p => (
+                  <tr key={p.id} className="border-b">
+                    <td className="py-2">{new Date(p.createdAt).toLocaleDateString()}</td>
+                    <td className="text-right py-2">{p.amount.toLocaleString()} F</td>
+                    <td className="py-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
+                    <td className="py-2">{p.transactionId || '-'}</td>
+                    <td className="py-2">{p.receiver?.name || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="mb-4">Aucun paiement enregistré.</p>
         )}
@@ -222,10 +185,7 @@ const InvoiceDetail: React.FC = () => {
             <p><span className="font-medium">Reste à payer:</span> {remaining.toLocaleString()} F</p>
           </div>
           {invoice.status === 'draft' && remaining > 0 && (user?.role === 'cashier' || user?.role === 'admin') && (
-            <button
-              onClick={() => setShowPaymentForm(!showPaymentForm)}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
+            <button onClick={() => setShowPaymentForm(!showPaymentForm)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
               {showPaymentForm ? 'Annuler' : 'Ajouter un paiement'}
             </button>
           )}
@@ -236,26 +196,14 @@ const InvoiceDetail: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Montant *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  max={remaining}
-                  value={paymentAmount}
+                <input type="number" step="0.01" required max={remaining} value={paymentAmount}
                   onChange={(e) => setPaymentAmount(parseFloat(e.target.value))}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                />
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Méthode *</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => {
-                    setPaymentMethod(e.target.value as any);
-                    setTransactionId('');
-                  }}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                >
+                <select value={paymentMethod} onChange={(e) => { setPaymentMethod(e.target.value as any); setTransactionId(''); }}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
                   <option value="cash">Espèces</option>
                   <option value="orange_money">Orange Money</option>
                   <option value="mtn_money">MTN Money</option>
@@ -264,21 +212,12 @@ const InvoiceDetail: React.FC = () => {
               {(paymentMethod === 'orange_money' || paymentMethod === 'mtn_money') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Numéro de transaction *</label>
-                  <input
-                    type="text"
-                    required
-                    value={transactionId}
-                    onChange={(e) => setTransactionId(e.target.value)}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                    placeholder="Ex: OM123456789"
-                  />
+                  <input type="text" required value={transactionId} onChange={(e) => setTransactionId(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Ex: OM123456789" />
                 </div>
               )}
             </div>
-            <button
-              type="submit"
-              className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-            >
+            <button type="submit" className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
               Enregistrer le paiement
             </button>
           </form>

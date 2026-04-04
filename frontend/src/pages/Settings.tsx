@@ -35,7 +35,8 @@ const Settings: React.FC = () => {
     setCompany(data);
     if (data.logo) {
       const base = api.defaults.baseURL?.replace('/api', '') || '';
-      setLogoPreview(`${base}/uploads/${data.logo}`);
+      // data.logo contient déjà "uploads/logo-xxx.png"
+      setLogoPreview(`${base}/${data.logo}`);
     }
   } catch (error) {
     toast.error('Erreur chargement');

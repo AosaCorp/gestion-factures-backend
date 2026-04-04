@@ -1,4 +1,5 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { protect, authorize } = require('../middleware/auth');
 const logger = require('../middleware/logger');
 const {
@@ -27,17 +28,24 @@ router.route('/:id')
   .put(authorize('cashier', 'admin'), logger('UPDATE_INVOICE'), updateInvoice)
   .delete(authorize('admin'), logger('CANCEL_INVOICE'), cancelInvoice);
 
-router.get('/:id/pdf', authorize('cashier', 'admin', 'manager'), async (req, res) => {
+// Route PDF avec token dans l'URL (pour l'application mobile)
+router.get('/:id/pdf', async (req, res) => {
+  let token = req.headers.authorization?.split(' ')[1];
+  if (!token && req.query.token) token = req.query.token;
+  if (!token) return res.status(401).json({ message: 'Non autorisé' });
+
   try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findByPk(decoded.id);
+    if (!user) return res.status(401).json({ message: 'Utilisateur non trouvé' });
+
     const invoice = await Invoice.findByPk(req.params.id, {
       include: [
         { model: Client, as: 'client' },
         { model: Payment, include: [{ model: User, as: 'receiver' }] }
       ]
     });
-    if (!invoice) {
-      return res.status(404).json({ message: 'Facture non trouvée' });
-    }
+    if (!invoice) return res.status(404).json({ message: 'Facture non trouvée' });
 
     const company = await Company.findOne();
     const items = invoice.items || [];
