@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { clientService, Client } from '../services/clientService';
-import { invoiceService } from '../services/invoiceService'; // ← ajout
+import { invoiceService } from '../services/invoiceService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiSearch, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
@@ -112,7 +112,6 @@ const Clients: React.FC = () => {
     <div className="container mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-6">Gestion des clients</h1>
 
-      {/* Barre de recherche et boutons */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 max-w-md">
@@ -138,13 +137,12 @@ const Clients: React.FC = () => {
         </div>
       </div>
 
-      {/* Tableau */}
       {loading ? (
         <p>Chargement...</p>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-[800px] w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code client</th>
@@ -168,20 +166,21 @@ const Clients: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">{stats.totalSpent.toLocaleString()} FCFA</td>
                       <td className="px-6 py-4 whitespace-nowrap">{new Date(client.createdAt).toLocaleDateString('fr-FR')}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        
-<Link to={`/clients/${client.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
-  <FiEye className="inline text-xl" />
-</Link>
-{(user?.role === 'cashier' || user?.role === 'admin') && (
-  <>
-    <Link to={`/clients/edit/${client.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
-      <FiEdit className="inline text-xl" />
-    </Link>
-    <button onClick={() => handleDelete(client.id)} className="text-red-600 hover:text-red-900" title="Supprimer">
-      <FiTrash2 className="inline text-xl" />
-    </button>
-  </>
-)}
+                        <div className="flex items-center gap-3">
+                          <Link to={`/clients/${client.id}`} className="text-indigo-600" title="Voir">
+                            <FiEye className="w-6 h-6" />
+                          </Link>
+                          {(user?.role === 'cashier' || user?.role === 'admin') && (
+                            <>
+                              <Link to={`/clients/edit/${client.id}`} className="text-yellow-600" title="Modifier">
+                                <FiEdit className="w-6 h-6" />
+                              </Link>
+                              <button onClick={() => handleDelete(client.id)} className="text-red-600" title="Supprimer">
+                                <FiTrash2 className="w-6 h-6" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -190,7 +189,6 @@ const Clients: React.FC = () => {
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="flex justify-center mt-4 space-x-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}

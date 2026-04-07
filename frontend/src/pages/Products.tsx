@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { FiSearch, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
 import { exportToCSV } from '../services/exportService';
+
 const Products: React.FC = () => {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -86,24 +87,24 @@ const Products: React.FC = () => {
   };
 
   const handleExport = async () => {
-  try {
-    const allProducts = await productService.getAll();
-    const dataForExport = allProducts.map(p => ({
-      Nom: p.name,
-      Description: p.description || '',
-      Type: p.description === 'service' ? 'Service' : 'Produit',
-      'Prix HT': p.price,
-      'TVA (%)': p.taxRate,
-      'Prix TTC': Math.round(p.price * (1 + p.taxRate/100)),
-      'Date création': new Date(p.createdAt).toLocaleDateString('fr-FR')
-    }));
-    await exportToCSV(dataForExport, 'produits');
-    toast.success('Export réussi');
-  } catch (error) {
-    console.error('Erreur export', error);
-    toast.error('Erreur lors de l\'export');
-  }
-};
+    try {
+      const allProducts = await productService.getAll();
+      const dataForExport = allProducts.map(p => ({
+        Nom: p.name,
+        Description: p.description || '',
+        Type: p.description === 'service' ? 'Service' : 'Produit',
+        'Prix HT': p.price,
+        'TVA (%)': p.taxRate,
+        'Prix TTC': Math.round(p.price * (1 + p.taxRate/100)),
+        'Date création': new Date(p.createdAt).toLocaleDateString('fr-FR')
+      }));
+      await exportToCSV(dataForExport, 'produits');
+      toast.success('Export réussi');
+    } catch (error) {
+      console.error('Erreur export', error);
+      toast.error('Erreur lors de l\'export');
+    }
+  };
 
   const filteredProducts = products.filter(p => {
     if (typeFilter === 'product') return p.description !== 'service';
@@ -115,7 +116,6 @@ const Products: React.FC = () => {
     <div className="container mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-6">Gestion des produits</h1>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500">Total produits</p>
@@ -135,7 +135,6 @@ const Products: React.FC = () => {
         </div>
       </div>
 
-      {/* Filtres et actions */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 max-w-md">
@@ -172,13 +171,12 @@ const Products: React.FC = () => {
         </div>
       </div>
 
-      {/* Tableau */}
       {loading ? (
         <p>Chargement...</p>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-[1000px] w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
@@ -206,19 +204,21 @@ const Products: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">{Math.round(product.price * (1 + product.taxRate/100)).toLocaleString()} FCFA</td>
                     <td className="px-6 py-4 whitespace-nowrap">{new Date(product.createdAt).toLocaleDateString('fr-FR')}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link to={`/products/${product.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
-  <FiEye className="inline text-xl" />
-</Link>
-{user?.role === 'admin' && (
-  <>
-    <Link to={`/products/edit/${product.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
-      <FiEdit className="inline text-xl" />
-    </Link>
-    <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900" title="Supprimer">
-      <FiTrash2 className="inline text-xl" />
-    </button>
-  </>
-)}
+                      <div className="flex items-center gap-3">
+                        <Link to={`/products/${product.id}`} className="text-indigo-600" title="Voir">
+                          <FiEye className="w-6 h-6" />
+                        </Link>
+                        {user?.role === 'admin' && (
+                          <>
+                            <Link to={`/products/edit/${product.id}`} className="text-yellow-600" title="Modifier">
+                              <FiEdit className="w-6 h-6" />
+                            </Link>
+                            <button onClick={() => handleDelete(product.id)} className="text-red-600" title="Supprimer">
+                              <FiTrash2 className="w-6 h-6" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -226,7 +226,6 @@ const Products: React.FC = () => {
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="flex justify-center mt-4 space-x-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}

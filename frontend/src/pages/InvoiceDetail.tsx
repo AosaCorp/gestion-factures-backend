@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiDownload } from 'react-icons/fi';
 import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -69,7 +70,11 @@ const InvoiceDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const url = `https://gestion-factures-backend-2.onrender.com/api/invoices/${invoice.id}/pdf?token=${token}`;
-      await Browser.open({ url });
+      if (Capacitor.isNativePlatform()) {
+        await Browser.open({ url });
+      } else {
+        window.open(url, '_blank');
+      }
       toast.success('Ouverture du PDF...');
     } catch (error) {
       console.error('Erreur téléchargement PDF', error);
@@ -97,6 +102,7 @@ const InvoiceDetail: React.FC = () => {
         </div>
       </div>
 
+      {/* Informations client */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Informations client</h2>
         {client && (
@@ -109,6 +115,7 @@ const InvoiceDetail: React.FC = () => {
         )}
       </div>
 
+      {/* Articles */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Articles</h2>
         <div className="overflow-x-auto">
@@ -134,13 +141,16 @@ const InvoiceDetail: React.FC = () => {
               ))}
             </tbody>
             <tfoot>
-              <tr><td colSpan={4} className="text-right font-medium py-2">Sous-total HT</td>
+              <tr>
+                <td colSpan={4} className="text-right font-medium py-2">Sous-total HT</td>
                 <td className="text-right py-2">{invoice.subtotal.toLocaleString()} F</td>
               </tr>
-              <tr><td colSpan={4} className="text-right font-medium py-2">TVA</td>
+              <tr>
+                <td colSpan={4} className="text-right font-medium py-2">TVA</td>
                 <td className="text-right py-2">{invoice.taxTotal.toLocaleString()} F</td>
               </tr>
-              <tr><td colSpan={4} className="text-right font-bold py-2">TOTAL TTC</td>
+              <tr>
+                <td colSpan={4} className="text-right font-bold py-2">TOTAL TTC</td>
                 <td className="text-right font-bold py-2">{invoice.total.toLocaleString()} F</td>
               </tr>
             </tfoot>
@@ -148,6 +158,7 @@ const InvoiceDetail: React.FC = () => {
         </div>
       </div>
 
+      {/* Paiements */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Paiements</h2>
         {payments.length > 0 ? (
@@ -196,14 +207,23 @@ const InvoiceDetail: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Montant *</label>
-                <input type="number" step="0.01" required max={remaining} value={paymentAmount}
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  max={remaining}
+                  value={paymentAmount}
                   onChange={(e) => setPaymentAmount(parseFloat(e.target.value))}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Méthode *</label>
-                <select value={paymentMethod} onChange={(e) => { setPaymentMethod(e.target.value as any); setTransactionId(''); }}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => { setPaymentMethod(e.target.value as any); setTransactionId(''); }}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                >
                   <option value="cash">Espèces</option>
                   <option value="orange_money">Orange Money</option>
                   <option value="mtn_money">MTN Money</option>
@@ -212,8 +232,14 @@ const InvoiceDetail: React.FC = () => {
               {(paymentMethod === 'orange_money' || paymentMethod === 'mtn_money') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Numéro de transaction *</label>
-                  <input type="text" required value={transactionId} onChange={(e) => setTransactionId(e.target.value)}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Ex: OM123456789" />
+                  <input
+                    type="text"
+                    required
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                    placeholder="Ex: OM123456789"
+                  />
                 </div>
               )}
             </div>

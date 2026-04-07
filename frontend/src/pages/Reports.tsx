@@ -20,6 +20,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Papa from 'papaparse';
 import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 import api from '../services/api';
 
 ChartJS.register(
@@ -159,7 +160,11 @@ const Reports: React.FC = () => {
       const csv = Papa.unparse(data);
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      await Browser.open({ url });
+      if (Capacitor.isNativePlatform()) {
+        await Browser.open({ url });
+      } else {
+        window.open(url, '_blank');
+      }
       URL.revokeObjectURL(url);
       toast.success('Export CSV réussi');
     } catch (error) {
@@ -257,7 +262,11 @@ const Reports: React.FC = () => {
 
     const pdfData = doc.output('blob');
     const url = URL.createObjectURL(pdfData);
-    await Browser.open({ url });
+    if (Capacitor.isNativePlatform()) {
+      await Browser.open({ url });
+    } else {
+      window.open(url, '_blank');
+    }
     URL.revokeObjectURL(url);
     toast.success('Export PDF réussi');
   };
