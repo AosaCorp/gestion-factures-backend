@@ -30,14 +30,19 @@ router.route('/:id')
 
 // Route PDF avec token dans l'URL (pour l'application mobile)
 router.get('/:id/pdf', async (req, res) => {
+  // Récupérer le token depuis le header ou depuis le query param
   let token = req.headers.authorization?.split(' ')[1];
   if (!token && req.query.token) token = req.query.token;
-  if (!token) return res.status(401).json({ message: 'Non autorisé' });
+  if (!token) {
+    return res.status(401).json({ message: 'Non autorisé, token manquant' });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findByPk(decoded.id);
-    if (!user) return res.status(401).json({ message: 'Utilisateur non trouvé' });
+    if (!user) {
+      return res.status(401).json({ message: 'Utilisateur non trouvé' });
+    }
 
     const invoice = await Invoice.findByPk(req.params.id, {
       include: [
@@ -45,7 +50,9 @@ router.get('/:id/pdf', async (req, res) => {
         { model: Payment, include: [{ model: User, as: 'receiver' }] }
       ]
     });
-    if (!invoice) return res.status(404).json({ message: 'Facture non trouvée' });
+    if (!invoice) {
+      return res.status(404).json({ message: 'Facture non trouvée' });
+    }
 
     const company = await Company.findOne();
     const items = invoice.items || [];
@@ -54,8 +61,8 @@ router.get('/:id/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename=facture-${invoice.number}.pdf`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Erreur génération PDF' });
+    console.error('Erreur génération PDF:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 

@@ -66,21 +66,23 @@ const InvoiceDetail: React.FC = () => {
   };
 
   const handleDownloadPdf = async () => {
-    if (!invoice) return;
-    try {
-      const token = localStorage.getItem('token');
-      const url = `https://gestion-factures-backend-2.onrender.com/api/invoices/${invoice.id}/pdf?token=${token}`;
-      if (Capacitor.isNativePlatform()) {
-        await Browser.open({ url });
-      } else {
-        window.open(url, '_blank');
-      }
-      toast.success('Ouverture du PDF...');
-    } catch (error) {
-      console.error('Erreur téléchargement PDF', error);
-      toast.error('Erreur lors de l\'ouverture');
+  if (!invoice) return;
+  try {
+    const token = localStorage.getItem('token');
+    const url = `https://gestion-factures-backend-2.onrender.com/api/invoices/${invoice.id}/pdf?token=${token}`;
+    if (Capacitor.isNativePlatform()) {
+      await Browser.open({ url });
+    } else {
+      window.open(url, '_blank');
     }
-  };
+    toast.success('Ouverture du PDF...');
+  } catch (error: any) {
+    console.error('Erreur téléchargement PDF', error);
+    // Afficher le message d'erreur du backend si disponible
+    const message = error.response?.data?.message || error.message || 'Erreur lors de l\'ouverture';
+    toast.error(message);
+  }
+};
 
   if (loading) return <div className="p-6">Chargement...</div>;
   if (!invoice) return <div className="p-6">Facture non trouvée</div>;

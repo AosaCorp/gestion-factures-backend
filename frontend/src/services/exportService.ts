@@ -18,7 +18,7 @@ export const exportToCSV = async (data: any[], _filename: string) => {
     return true;
   } catch (error) {
     console.error('Erreur export CSV:', error);
-    // Fallback
+    // Fallback ultime
     const fallbackUrl = URL.createObjectURL(new Blob([Papa.unparse(data)], { type: 'text/csv' }));
     window.open(fallbackUrl, '_blank');
     throw error;
