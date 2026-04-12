@@ -6,9 +6,7 @@ import toast from 'react-hot-toast';
 import { FiSearch, FiFilter, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
 import { exportToCSV } from '../services/exportService';
-import api from '../services/api';
-import { Browser } from '@capacitor/browser';
-import { Capacitor } from '@capacitor/core';
+import api from '../services/api'; // ← ajout
 
 const Invoices: React.FC = () => {
   const { user } = useAuth();
@@ -93,17 +91,14 @@ const Invoices: React.FC = () => {
 
   const handleDownloadPdf = async (id: number) => {
     try {
-      const token = localStorage.getItem('token');
-      const url = `https://gestion-factures-backend-2.onrender.com/api/invoices/${id}/pdf?token=${token}`;
-      if (Capacitor.isNativePlatform()) {
-        await Browser.open({ url });
-      } else {
-        window.open(url, '_blank');
-      }
-      toast.success('Ouverture du PDF...');
+      const blob = await invoiceService.getPdf(id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `facture-${id}.pdf`;
+      a.click();
     } catch (error) {
-      console.error('Erreur téléchargement PDF', error);
-      toast.error('Erreur lors de l\'ouverture');
+      toast.error('Erreur téléchargement PDF');
     }
   };
 
@@ -138,6 +133,7 @@ const Invoices: React.FC = () => {
     <div className="container mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-6">Gestion des factures</h1>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500">Total factures</p>
@@ -157,6 +153,7 @@ const Invoices: React.FC = () => {
         </div>
       </div>
 
+      {/* Filtres et actions */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 max-w-md">
@@ -195,21 +192,22 @@ const Invoices: React.FC = () => {
         </div>
       </div>
 
+      {/* Tableau */}
       {loading ? (
         <p>Chargement...</p>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="min-w-[1000px] w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">N° Facture</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payé</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Facture</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payé</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                  </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -227,24 +225,26 @@ const Invoices: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">{paid.toLocaleString()} FCFA</td>
                       <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(invoice.status)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-3">
-                          <Link to={`/invoices/${invoice.id}`} className="text-indigo-600" title="Voir">
-                            <FiEye className="w-6 h-6" />
+                        <Link to={`/invoices/${invoice.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
+                          <FiEye className="inline" />
+                        </Link>
+                        <button
+                          onClick={() => handleDownloadPdf(invoice.id)}
+                          className="text-purple-600 hover:text-purple-900 mr-3"
+                          title="Télécharger PDF"
+                        >
+                          <FiDownload className="inline" />
+                        </button>
+                        {invoice.status === 'draft' && (user?.role === 'cashier' || user?.role === 'admin') && (
+                          <Link to={`/invoices/edit/${invoice.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
+                            <FiEdit className="inline" />
                           </Link>
-                          <button onClick={() => handleDownloadPdf(invoice.id)} className="text-purple-600" title="Télécharger PDF">
-                            <FiDownload className="w-6 h-6" />
+                        )}
+                        {invoice.status === 'draft' && user?.role === 'admin' && (
+                          <button onClick={() => handleCancel(invoice.id)} className="text-red-600 hover:text-red-900" title="Annuler">
+                            <FiTrash2 className="inline" />
                           </button>
-                          {invoice.status === 'draft' && (user?.role === 'cashier' || user?.role === 'admin') && (
-                            <Link to={`/invoices/edit/${invoice.id}`} className="text-yellow-600" title="Modifier">
-                              <FiEdit className="w-6 h-6" />
-                            </Link>
-                          )}
-                          {invoice.status === 'draft' && user?.role === 'admin' && (
-                            <button onClick={() => handleCancel(invoice.id)} className="text-red-600" title="Annuler">
-                              <FiTrash2 className="w-6 h-6" />
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -253,6 +253,7 @@ const Invoices: React.FC = () => {
             </table>
           </div>
 
+          {/* Pagination */}
           <div className="flex justify-center mt-4 space-x-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}

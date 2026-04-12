@@ -1,26 +1,24 @@
-import { Browser } from '@capacitor/browser';
-import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import Papa from 'papaparse';
 
-export const exportToCSV = async (data: any[], _filename: string) => {
+export const exportToCSV = async (data: any[], filename: string) => {
   try {
     const csv = Papa.unparse(data);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-
-    if (Capacitor.isNativePlatform()) {
-      await Browser.open({ url });
-    } else {
-      window.open(url, '_blank');
-    }
-
-    URL.revokeObjectURL(url);
+    const fileName = `${filename}.csv`;
+    await Filesystem.writeFile({
+      path: fileName,
+      data: csv,
+      directory: Directory.Documents,
+    });
+    await Share.share({
+      title: 'Export CSV',
+      text: `Fichier ${fileName}`,
+      url: `file://${fileName}`,
+    });
     return true;
   } catch (error) {
     console.error('Erreur export CSV:', error);
-    // Fallback ultime
-    const fallbackUrl = URL.createObjectURL(new Blob([Papa.unparse(data)], { type: 'text/csv' }));
-    window.open(fallbackUrl, '_blank');
     throw error;
   }
 };

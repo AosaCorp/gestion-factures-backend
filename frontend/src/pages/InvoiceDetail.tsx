@@ -5,8 +5,8 @@ import { clientService, Client } from '../services/clientService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiDownload } from 'react-icons/fi';
-import { Browser } from '@capacitor/browser';
-import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,19 +68,28 @@ const InvoiceDetail: React.FC = () => {
   const handleDownloadPdf = async () => {
   if (!invoice) return;
   try {
-    const token = localStorage.getItem('token');
-    const url = `https://gestion-factures-backend-2.onrender.com/api/invoices/${invoice.id}/pdf?token=${token}`;
-    if (Capacitor.isNativePlatform()) {
-      await Browser.open({ url });
-    } else {
-      window.open(url, '_blank');
-    }
-    toast.success('Ouverture du PDF...');
-  } catch (error: any) {
+    const blob = await invoiceService.getPdf(invoice.id);
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onloadend = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const fileName = `facture-${invoice.number}.pdf`;
+      const result = await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Documents,
+      });
+      await Share.share({
+        title: 'Facture',
+        text: `Facture ${invoice.number}`,
+        url: result.uri,
+      });
+      toast.success('PDF prêt à être partagé');
+    };
+    reader.onerror = () => toast.error('Erreur lecture PDF');
+  } catch (error) {
     console.error('Erreur téléchargement PDF', error);
-    // Afficher le message d'erreur du backend si disponible
-    const message = error.response?.data?.message || error.message || 'Erreur lors de l\'ouverture';
-    toast.error(message);
+    toast.error('Erreur lors du téléchargement');
   }
 };
 

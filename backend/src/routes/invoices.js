@@ -30,7 +30,6 @@ router.route('/:id')
 
 // Route PDF avec token dans l'URL (pour l'application mobile)
 router.get('/:id/pdf', async (req, res) => {
-  // Récupérer le token depuis le header ou depuis le query param
   let token = req.headers.authorization?.split(' ')[1];
   if (!token && req.query.token) token = req.query.token;
   if (!token) {
