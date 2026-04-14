@@ -28,9 +28,51 @@ ChartJS.register(
   Legend
 );
 
+interface DashboardStats {
+  clients: number;
+  invoices: number;
+  payments: number;
+  totalRevenue: number;
+  totalPaid: number;
+  unpaid: number;
+  pendingInvoices: number;
+  topProducts: Array<{ name: string; price: number }>;
+  recentActivities: Array<{
+    id: number;
+    type: 'invoice' | 'payment';
+    amount: number;
+    clientName: string;
+    method?: string;
+    date: string;
+  }>;
+  latestInvoices: Array<{
+    id: number;
+    number: string;
+    clientName: string;
+    date: string;
+    total: number;
+    status: string;
+  }>;
+  salesByDate: Array<{ date: string; revenue: number; paid: number }>;
+  paymentMethods: { cash: number; orange_money: number; mtn_money: number };
+}
+
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    clients: 0,
+    invoices: 0,
+    payments: 0,
+    totalRevenue: 0,
+    totalPaid: 0,
+    unpaid: 0,
+    pendingInvoices: 0,
+    topProducts: [],
+    recentActivities: [],
+    latestInvoices: [],
+    salesByDate: [],
+    paymentMethods: { cash: 0, orange_money: 0, mtn_money: 0 }
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,15 +82,21 @@ const Dashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, invoicesRes, paymentsRes, productsRes, salesReportRes, paymentsReportRes] =
-        await Promise.all([
-          api.get('/stats'),
-          api.get('/invoices', { params: { limit: 5, sort: 'createdAt', order: 'DESC' } }),
-          api.get('/payments', { params: { limit: 5, sort: 'createdAt', order: 'DESC' } }),
-          api.get('/products', { params: { limit: 5, sort: 'createdAt', order: 'DESC' } }),
-          api.get('/reports/sales'),
-          api.get('/reports/payments'),
-        ]);
+      const [
+        statsRes,
+        invoicesRes,
+        paymentsRes,
+        productsRes,
+        salesReportRes,
+        paymentsReportRes
+      ] = await Promise.all([
+        api.get('/stats'),
+        api.get('/invoices', { params: { limit: 5, sort: 'createdAt', order: 'DESC' } }),
+        api.get('/payments', { params: { limit: 5, sort: 'createdAt', order: 'DESC' } }),
+        api.get('/products', { params: { limit: 5, sort: 'createdAt', order: 'DESC' } }),
+        api.get('/reports/sales'),
+        api.get('/reports/payments')
+      ]);
 
       const statsData = statsRes.data;
       const invoices = invoicesRes.data.data || invoicesRes.data;
@@ -78,7 +126,6 @@ const Dashboard: React.FC = () => {
         ...invoices.map((inv: any) => ({
           id: inv.id,
           type: 'invoice' as const,
-          description: `Nouvelle facture ${inv.number}`,
           amount: parseFloat(inv.total) || 0,
           clientName: inv.client?.name || 'Client',
           date: inv.createdAt,
@@ -86,7 +133,6 @@ const Dashboard: React.FC = () => {
         ...payments.map((p: any) => ({
           id: p.id,
           type: 'payment' as const,
-          description: `Paiement reçu`,
           amount: parseFloat(p.amount) || 0,
           clientName: p.Invoice?.client?.name || 'Client',
           method: p.method,
@@ -125,22 +171,19 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
   const evolutionChartData = {
-    labels: stats?.salesByDate.map((d: any) => d.date) || [],
+    labels: stats.salesByDate.map((d) => d.date),
     datasets: [
       {
         label: 'Chiffre d\'affaires',
-        data: stats?.salesByDate.map((d: any) => d.revenue) || [],
+        data: stats.salesByDate.map((d) => d.revenue),
         borderColor: '#3b82f6',
         backgroundColor: 'rgba(59, 130, 246, 0.5)',
         tension: 0.4,
       },
       {
         label: 'Encaissements',
-        data: stats?.salesByDate.map((d: any) => d.paid) || [],
+        data: stats.salesByDate.map((d) => d.paid),
         borderColor: '#10b981',
         backgroundColor: 'rgba(16, 185, 129, 0.5)',
         tension: 0.4,
@@ -152,15 +195,15 @@ const Dashboard: React.FC = () => {
     labels: ['Espèces', 'Orange Money', 'MTN Money'],
     datasets: [
       {
-        data: [stats?.paymentMethods.cash || 0, stats?.paymentMethods.orange_money || 0, stats?.paymentMethods.mtn_money || 0],
+        data: [stats.paymentMethods.cash, stats.paymentMethods.orange_money, stats.paymentMethods.mtn_money],
         backgroundColor: ['#10b981', '#f59e0b', '#3b82f6'],
       },
     ],
   };
 
-  if (loading)
+  if (loading) {
     return <div className="flex justify-center items-center h-64">Chargement du tableau de bord...</div>;
-  if (!stats) return <div className="p-4 text-red-600">Impossible de charger les données.</div>;
+  }
 
   return (
     <div className="p-4 md:p-6">
@@ -169,35 +212,23 @@ const Dashboard: React.FC = () => {
         <p className="text-gray-600">Résumé de votre activité</p>
       </div>
 
-      {/* KPI en grille responsive */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 flex items-center space-x-3">
+        <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3">
           <FiUsers className="text-blue-500 text-2xl" />
-          <div>
-            <p className="text-sm text-gray-500">Clients</p>
-            <p className="text-xl font-bold">{stats.clients}</p>
-          </div>
+          <div><p className="text-sm text-gray-500">Clients</p><p className="text-xl font-bold">{stats.clients}</p></div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 flex items-center space-x-3">
+        <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3">
           <FiFileText className="text-green-500 text-2xl" />
-          <div>
-            <p className="text-sm text-gray-500">Factures</p>
-            <p className="text-xl font-bold">{stats.invoices}</p>
-          </div>
+          <div><p className="text-sm text-gray-500">Factures</p><p className="text-xl font-bold">{stats.invoices}</p></div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 flex items-center space-x-3">
+        <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3">
           <FiCreditCard className="text-yellow-500 text-2xl" />
-          <div>
-            <p className="text-sm text-gray-500">Paiements</p>
-            <p className="text-xl font-bold">{stats.payments}</p>
-          </div>
+          <div><p className="text-sm text-gray-500">Paiements</p><p className="text-xl font-bold">{stats.payments}</p></div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 flex items-center space-x-3">
+        <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3">
           <FiAlertCircle className="text-red-500 text-2xl" />
-          <div>
-            <p className="text-sm text-gray-500">Impayés</p>
-            <p className="text-xl font-bold">{stats.unpaid.toLocaleString()} FCFA</p>
-          </div>
+          <div><p className="text-sm text-gray-500">Impayés</p><p className="text-xl font-bold">{stats.unpaid.toLocaleString()} FCFA</p></div>
         </div>
       </div>
 
@@ -228,9 +259,7 @@ const Dashboard: React.FC = () => {
       {/* Alertes et top produits */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-3">
-            <FiAlertCircle className="text-red-500" /> Alertes
-          </h2>
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-3"><FiAlertCircle className="text-red-500" /> Alertes</h2>
           <div className="space-y-2">
             <div className="flex justify-between items-center p-2 bg-red-50 rounded">
               <span>{stats.unpaid.toLocaleString()} FCFA d'impayés</span>
@@ -246,10 +275,10 @@ const Dashboard: React.FC = () => {
           <h2 className="text-lg font-semibold mb-3">Top produits</h2>
           {stats.topProducts.length ? (
             <div className="space-y-2">
-              {stats.topProducts.map((p, idx) => (
+              {stats.topProducts.map((product, idx) => (
                 <div key={idx} className="flex justify-between items-center p-2 border-b">
-                  <span>{idx+1}. {p.name}</span>
-                  <span className="font-bold">{p.price.toLocaleString()} FCFA</span>
+                  <span>{idx+1}. {product.name}</span>
+                  <span className="font-bold">{product.price.toLocaleString()} FCFA</span>
                 </div>
               ))}
             </div>
@@ -263,7 +292,7 @@ const Dashboard: React.FC = () => {
       <div className="bg-white rounded-lg shadow p-4">
         <h2 className="text-lg font-semibold mb-3">Dernières factures</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-[640px] w-full">
+          <table className="min-w-[640px] w-full text-sm">
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 text-left">N°</th>
@@ -283,14 +312,13 @@ const Dashboard: React.FC = () => {
                   <td className="p-2 text-right">{inv.total.toLocaleString()} FCFA</td>
                   <td className="p-2">
                     <span className={`px-2 py-1 text-xs rounded-full ${
-                      inv.status === 'paid' ? 'bg-green-100 text-green-800' : inv.status === 'draft' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                      inv.status === 'paid' ? 'bg-green-100 text-green-800' :
+                      inv.status === 'draft' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
                     }`}>
                       {inv.status === 'paid' ? 'Payée' : inv.status === 'draft' ? 'En attente' : 'Annulée'}
                     </span>
                   </td>
-                  <td className="p-2">
-                    <Link to={`/invoices/${inv.id}`} className="text-blue-600 text-sm">Voir</Link>
-                  </td>
+                  <td className="p-2"><Link to={`/invoices/${inv.id}`} className="text-blue-600 text-sm">Voir</Link></td>
                 </tr>
               ))}
             </tbody>
