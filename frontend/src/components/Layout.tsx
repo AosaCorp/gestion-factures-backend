@@ -25,41 +25,72 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Barre de navigation horizontale avec défilement si nécessaire */}
+      {/* Barre de navigation fixe en haut */}
       <header className="bg-white shadow-md sticky top-0 z-10">
-        <div className="flex items-center justify-between px-4 py-2">
-          {/* Logo */}
-          <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between px-3 py-2">
+          {/* Logo (optionnel sur mobile) */}
+          <div className="flex items-center shrink-0">
             <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
-            <span className="font-bold text-gray-800 hidden sm:inline">Gestion Factures</span>
           </div>
 
-          {/* Menu défilable horizontalement */}
+          {/* Menu défilable horizontalement : sur très petit écran, cacher les textes */}
           <nav className="flex-1 overflow-x-auto whitespace-nowrap scrollbar-hide px-2">
-            <ul className="flex items-center space-x-4 text-sm">
-              <li><Link to="/" className="flex items-center text-gray-700 hover:text-blue-600"><FiHome className="mr-1" /> Dashboard</Link></li>
-              <li><Link to="/clients" className="flex items-center text-gray-700 hover:text-blue-600"><FiUsers className="mr-1" /> Clients</Link></li>
-              <li><Link to="/products" className="flex items-center text-gray-700 hover:text-blue-600"><FiPackage className="mr-1" /> Produits</Link></li>
-              <li><Link to="/invoices" className="flex items-center text-gray-700 hover:text-blue-600"><FiFileText className="mr-1" /> Factures</Link></li>
+            <ul className="flex items-center space-x-3 md:space-x-4">
+              <li>
+                <Link to="/" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                  <FiHome className="text-lg md:mr-1" />
+                  <span className="hidden md:inline">Dashboard</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/clients" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                  <FiUsers className="text-lg md:mr-1" />
+                  <span className="hidden md:inline">Clients</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/products" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                  <FiPackage className="text-lg md:mr-1" />
+                  <span className="hidden md:inline">Produits</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/invoices" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                  <FiFileText className="text-lg md:mr-1" />
+                  <span className="hidden md:inline">Factures</span>
+                </Link>
+              </li>
               {canViewReports && (
-                <li><Link to="/reports" className="flex items-center text-gray-700 hover:text-blue-600"><FiBarChart2 className="mr-1" /> Rapports</Link></li>
+                <li>
+                  <Link to="/reports" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                    <FiBarChart2 className="text-lg md:mr-1" />
+                    <span className="hidden md:inline">Rapports</span>
+                  </Link>
+                </li>
               )}
               {isAdmin && (
                 <>
-                  <li><Link to="/users" className="flex items-center text-gray-700 hover:text-blue-600"><FiUser className="mr-1" /> Utilisateurs</Link></li>
-                  <li><Link to="/settings" className="flex items-center text-gray-700 hover:text-blue-600"><FiSettings className="mr-1" /> Paramètres</Link></li>
+                  <li>
+                    <Link to="/users" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                      <FiUser className="text-lg md:mr-1" />
+                      <span className="hidden md:inline">Utilisateurs</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/settings" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                      <FiSettings className="text-lg md:mr-1" />
+                      <span className="hidden md:inline">Paramètres</span>
+                    </Link>
+                  </li>
                 </>
               )}
             </ul>
           </nav>
 
-          {/* Utilisateur + déconnexion */}
-          <div className="flex items-center space-x-3 text-sm">
-            <span className="hidden sm:inline text-gray-600">{user?.name} ({user?.role})</span>
-            <button onClick={handleLogout} className="text-gray-700 hover:text-red-600" title="Déconnexion">
-              <FiLogOut size={20} />
-            </button>
-          </div>
+          {/* Déconnexion (icône seulement) */}
+          <button onClick={handleLogout} className="shrink-0 text-gray-700 hover:text-red-600 ml-2" title="Déconnexion">
+            <FiLogOut size={22} />
+          </button>
         </div>
       </header>
 
