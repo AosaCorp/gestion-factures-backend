@@ -113,109 +113,104 @@ const Products: React.FC = () => {
   });
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold mb-6">Gestion des produits</h1>
+    <div className="p-4 md:p-6">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">Gestion des produits</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Total produits</p>
-          <p className="text-2xl font-bold">{stats.totalProducts}</p>
+      {/* KPI Cards – responsive grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-3 md:p-4">
+          <p className="text-xs md:text-sm text-gray-500">Total produits</p>
+          <p className="text-lg md:text-2xl font-bold">{stats.totalProducts}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Produits</p>
-          <p className="text-2xl font-bold">{stats.productCount}</p>
+        <div className="bg-white rounded-lg shadow p-3 md:p-4">
+          <p className="text-xs md:text-sm text-gray-500">Produits</p>
+          <p className="text-lg md:text-2xl font-bold">{stats.productCount}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Services</p>
-          <p className="text-2xl font-bold">{stats.serviceCount}</p>
+        <div className="bg-white rounded-lg shadow p-3 md:p-4">
+          <p className="text-xs md:text-sm text-gray-500">Services</p>
+          <p className="text-lg md:text-2xl font-bold">{stats.serviceCount}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Valeur totale</p>
-          <p className="text-2xl font-bold">{stats.totalValue.toLocaleString()} FCFA</p>
+        <div className="bg-white rounded-lg shadow p-3 md:p-4">
+          <p className="text-xs md:text-sm text-gray-500">Valeur totale</p>
+          <p className="text-lg md:text-2xl font-bold">{stats.totalValue.toLocaleString()} FCFA</p>
         </div>
       </div>
 
+      {/* Filtres */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[180px]">
             <input
               type="text"
-              placeholder="Rechercher par nom, description..."
+              placeholder="Rechercher..."
               onChange={handleSearchChange}
-              className="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2"
+              className="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2 text-sm"
             />
             <FiSearch className="absolute left-3 top-3 text-gray-400" />
           </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as any)}
-              className="border border-gray-300 rounded-md px-3 py-2"
-            >
-              <option value="all">Tous les types</option>
-              <option value="product">Produits</option>
-              <option value="service">Services</option>
-            </select>
-          </div>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as any)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+          >
+            <option value="all">Tous les types</option>
+            <option value="product">Produits</option>
+            <option value="service">Services</option>
+          </select>
           <button
             onClick={handleExport}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center ml-auto"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-1 text-sm"
           >
-            <FiDownload className="mr-2" /> Exporter CSV
+            <FiDownload className="text-sm" /> CSV
           </button>
           {user?.role === 'admin' && (
-            <Link to="/products/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <Link to="/products/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
               Nouveau produit
             </Link>
           )}
         </div>
       </div>
 
+      {/* Tableau scrollable */}
       {loading ? (
         <p>Chargement...</p>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="min-w-[1000px] w-full divide-y divide-gray-200">
+            <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix unitaire</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TVA (%)</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix TTC</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date création</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-2 text-left">Nom</th>
+                  <th className="px-4 py-2 text-left">Description</th>
+                  <th className="px-4 py-2 text-left">Type</th>
+                  <th className="px-4 py-2 text-right">Prix HT</th>
+                  <th className="px-4 py-2 text-right">TVA%</th>
+                  <th className="px-4 py-2 text-right">Prix TTC</th>
+                  <th className="px-4 py-2 text-left">Date création</th>
+                  <th className="px-4 py-2 text-left">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200">
                 {filteredProducts.map(product => (
-                  <tr key={product.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{product.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{product.description || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                  <tr key={product.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 whitespace-nowrap">{product.name}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">{product.description || '-'}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs rounded-full ${product.description === 'service' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
                         {product.description === 'service' ? 'Service' : 'Produit'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{product.price.toLocaleString()} FCFA</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{product.taxRate}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{Math.round(product.price * (1 + product.taxRate/100)).toLocaleString()} FCFA</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{new Date(product.createdAt).toLocaleDateString('fr-FR')}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center gap-3">
-                        <Link to={`/products/${product.id}`} className="text-indigo-600" title="Voir">
-                          <FiEye className="w-6 h-6" />
-                        </Link>
+                    <td className="px-4 py-2 whitespace-nowrap text-right">{product.price.toLocaleString()} F</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-right">{product.taxRate}%</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-right">{Math.round(product.price * (1 + product.taxRate/100)).toLocaleString()} F</td>
+                    <td className="px-4 py-2 whitespace-nowrap">{new Date(product.createdAt).toLocaleDateString('fr-FR')}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="flex gap-2">
+                        <Link to={`/products/${product.id}`} title="Voir" className="text-indigo-600"><FiEye className="w-5 h-5" /></Link>
                         {user?.role === 'admin' && (
                           <>
-                            <Link to={`/products/edit/${product.id}`} className="text-yellow-600" title="Modifier">
-                              <FiEdit className="w-6 h-6" />
-                            </Link>
-                            <button onClick={() => handleDelete(product.id)} className="text-red-600" title="Supprimer">
-                              <FiTrash2 className="w-6 h-6" />
-                            </button>
+                            <Link to={`/products/edit/${product.id}`} title="Modifier" className="text-yellow-600"><FiEdit className="w-5 h-5" /></Link>
+                            <button onClick={() => handleDelete(product.id)} title="Supprimer" className="text-red-600"><FiTrash2 className="w-5 h-5" /></button>
                           </>
                         )}
                       </div>
@@ -225,23 +220,10 @@ const Products: React.FC = () => {
               </tbody>
             </table>
           </div>
-
-          <div className="flex justify-center mt-4 space-x-2">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Précédent
-            </button>
+          <div className="flex justify-center mt-4 gap-2 text-sm">
+            <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Précédent</button>
             <span className="px-3 py-1">Page {page} / {totalPages}</span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Suivant
-            </button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Suivant</button>
           </div>
         </>
       )}

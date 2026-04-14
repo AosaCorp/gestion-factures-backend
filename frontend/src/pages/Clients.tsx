@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { clientService, Client } from '../services/clientService';
-import { invoiceService } from '../services/invoiceService'; // ← ajout
+import { invoiceService } from '../services/invoiceService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiSearch, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
@@ -22,18 +22,17 @@ const Clients: React.FC = () => {
     try {
       setLoading(true);
       const data = await clientService.getAll();
-      const filtered = data.filter(c => 
+      const filtered = data.filter(c =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         (c.email && c.email.toLowerCase().includes(search.toLowerCase())) ||
         (c.phone && c.phone.includes(search))
       );
-      const start = (page - 1) * limit;
-      const paginated = filtered.slice(start, start + limit);
-      setClients(paginated);
       setTotalPages(Math.ceil(filtered.length / limit));
+      const start = (page - 1) * limit;
+      setClients(filtered.slice(start, start + limit));
     } catch (error) {
-      console.error('Erreur chargement clients', error);
-      toast.error('Erreur lors du chargement');
+      console.error(error);
+      toast.error('Erreur chargement clients');
     } finally {
       setLoading(false);
     }
@@ -42,19 +41,19 @@ const Clients: React.FC = () => {
   const fetchStats = useCallback(async () => {
     try {
       const invoices = await invoiceService.getAll();
-      const statsMap = new Map<number, { totalSpent: number; invoiceCount: number }>();
+      const map = new Map();
       invoices.forEach(inv => {
         if (inv.clientId) {
-          const current = statsMap.get(inv.clientId) || { totalSpent: 0, invoiceCount: 0 };
-          statsMap.set(inv.clientId, {
+          const current = map.get(inv.clientId) || { totalSpent: 0, invoiceCount: 0 };
+          map.set(inv.clientId, {
             totalSpent: current.totalSpent + inv.total,
-            invoiceCount: current.invoiceCount + 1
+            invoiceCount: current.invoiceCount + 1,
           });
         }
       });
-      setClientStats(statsMap);
+      setClientStats(map);
     } catch (error) {
-      console.error('Erreur chargement statistiques clients', error);
+      console.error(error);
     }
   }, []);
 
@@ -63,122 +62,98 @@ const Clients: React.FC = () => {
     fetchStats();
   }, [fetchClients, fetchStats]);
 
-  const debouncedSearch = useCallback(
-    debounce((value: string) => {
-      setSearch(value);
-      setPage(1);
-    }, 500),
-    []
-  );
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(e.target.value);
-  };
+  const debouncedSearch = useCallback(debounce((value: string) => { setSearch(value); setPage(1); }, 500), []);
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Supprimer ce client ?')) {
-      try {
-        await clientService.delete(id);
-        toast.success('Client supprimé');
-        fetchClients();
-        fetchStats();
-      } catch (error) {
-        console.error('Erreur suppression', error);
-        toast.error('Erreur lors de la suppression');
-      }
+    if (!window.confirm('Supprimer ce client ?')) return;
+    try {
+      await clientService.delete(id);
+      toast.success('Client supprimé');
+      fetchClients();
+      fetchStats();
+    } catch (error) {
+      toast.error('Erreur suppression');
     }
   };
 
   const handleExport = async () => {
     try {
-      const allClients = await clientService.getAll();
-      const dataForExport = allClients.map(c => ({
+      const all = await clientService.getAll();
+      const data = all.map(c => ({
         'Code client': `CLI${c.id}`,
-        'Nom & Prénom': c.name,
+        'Nom': c.name,
         'Email': c.email || '',
         'Téléphone': c.phone || '',
         'Adresse': c.address || '',
-        'Date inscription': new Date(c.createdAt).toLocaleDateString('fr-FR')
+        'Date inscription': new Date(c.createdAt).toLocaleDateString('fr-FR'),
       }));
-      await exportToCSV(dataForExport, 'clients');
+      await exportToCSV(data, 'clients');
       toast.success('Export réussi');
     } catch (error) {
-      console.error('Erreur export', error);
-      toast.error('Erreur lors de l\'export');
+      toast.error('Erreur export');
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold mb-6">Gestion des clients</h1>
-
-      {/* Barre de recherche et boutons */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative flex-1 max-w-md">
-            <input
-              type="text"
-              placeholder="Rechercher par nom, email, téléphone..."
-              onChange={handleSearchChange}
-              className="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2"
-            />
-            <FiSearch className="absolute left-3 top-3 text-gray-400" />
-          </div>
-          <button
-            onClick={handleExport}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center ml-auto"
-          >
-            <FiDownload className="mr-2" /> Exporter CSV
+    <div className="p-4 md:p-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <h1 className="text-2xl font-bold">Clients</h1>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={handleExport} className="bg-green-600 text-white px-3 py-1 rounded flex items-center gap-1 text-sm">
+            <FiDownload /> CSV
           </button>
           {(user?.role === 'cashier' || user?.role === 'admin') && (
-            <Link to="/clients/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-              Nouveau client
-            </Link>
+            <Link to="/clients/new" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">+ Nouveau</Link>
           )}
         </div>
       </div>
 
-      {/* Tableau */}
+      <div className="mb-4">
+        <div className="relative max-w-md">
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            onChange={(e) => debouncedSearch(e.target.value)}
+            className="w-full border rounded-md pl-10 pr-4 py-2"
+          />
+          <FiSearch className="absolute left-3 top-3 text-gray-400" />
+        </div>
+      </div>
+
       {loading ? (
         <p>Chargement...</p>
       ) : (
         <>
-          <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="overflow-x-auto bg-white rounded-lg shadow">
+            <table className="min-w-[800px] w-full">
+              <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code client</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom & Prénom</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Téléphone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total achats</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date inscription</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                 </tr>
+                  <th className="p-2 text-left">Code</th>
+                  <th className="p-2 text-left">Nom</th>
+                  <th className="p-2 text-left">Email</th>
+                  <th className="p-2 text-left">Tél.</th>
+                  <th className="p-2 text-right">Total achats</th>
+                  <th className="p-2 text-left">Inscription</th>
+                  <th className="p-2 text-left">Actions</th>
+                </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {clients.map(client => {
-                  const stats = clientStats.get(client.id) || { totalSpent: 0, invoiceCount: 0 };
+                  const stats = clientStats.get(client.id) || { totalSpent: 0 };
                   return (
-                    <tr key={client.id}>
-                      <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">CLI{client.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap font-medium">{client.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{client.email || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{client.phone || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{stats.totalSpent.toLocaleString()} FCFA</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{new Date(client.createdAt).toLocaleDateString('fr-FR')}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link to={`/clients/${client.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
-                          <FiEye className="inline" />
-                        </Link>
+                    <tr key={client.id} className="border-t">
+                      <td className="p-2">CLI{client.id}</td>
+                      <td className="p-2 font-medium">{client.name}</td>
+                      <td className="p-2">{client.email || '-'}</td>
+                      <td className="p-2">{client.phone || '-'}</td>
+                      <td className="p-2 text-right">{stats.totalSpent.toLocaleString()} FCFA</td>
+                      <td className="p-2">{new Date(client.createdAt).toLocaleDateString()}</td>
+                      <td className="p-2 flex gap-2">
+                        <Link to={`/clients/${client.id}`} title="Voir"><FiEye className="text-indigo-600" /></Link>
                         {(user?.role === 'cashier' || user?.role === 'admin') && (
                           <>
-                            <Link to={`/clients/edit/${client.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
-                              <FiEdit className="inline" />
-                            </Link>
-                            <button onClick={() => handleDelete(client.id)} className="text-red-600 hover:text-red-900" title="Supprimer">
-                              <FiTrash2 className="inline" />
-                            </button>
+                            <Link to={`/clients/edit/${client.id}`} title="Modifier"><FiEdit className="text-yellow-600" /></Link>
+                            <button onClick={() => handleDelete(client.id)} title="Supprimer"><FiTrash2 className="text-red-600" /></button>
                           </>
                         )}
                       </td>
@@ -188,24 +163,10 @@ const Clients: React.FC = () => {
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
-          <div className="flex justify-center mt-4 space-x-2">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Précédent
-            </button>
+          <div className="flex justify-center mt-4 gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Précédent</button>
             <span className="px-3 py-1">Page {page} / {totalPages}</span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Suivant
-            </button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Suivant</button>
           </div>
         </>
       )}

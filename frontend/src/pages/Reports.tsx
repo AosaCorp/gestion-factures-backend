@@ -296,7 +296,7 @@ const Reports: React.FC = () => {
     };
   };
 
-  // Rendu des onglets (simplifié, utilisez votre version si elle est correcte)
+  // ========== Rendu des onglets avec overflow-x-auto ==========
   const renderSalesTab = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -320,11 +320,29 @@ const Reports: React.FC = () => {
       )}
       {salesData?.invoices && (
         <div className="bg-white rounded shadow overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factures</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Clients</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">HT</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TVA</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TTC</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Encaissé</th></tr></thead>
+          <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factures</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Clients</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">HT</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TVA</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TTC</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Encaissé</th>
+              </tr>
+            </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {salesData.invoices.map((inv: any) => (
-                <tr key={inv.id}><td className="px-6 py-4 whitespace-nowrap">{new Date(inv.createdAt).toLocaleDateString('fr-FR')}</td><td className="px-6 py-4 whitespace-nowrap">1</td><td className="px-6 py-4 whitespace-nowrap">1</td><td className="px-6 py-4 whitespace-nowrap">{inv.subtotal.toLocaleString()} FCFA</td><td className="px-6 py-4 whitespace-nowrap">{inv.taxTotal.toLocaleString()} FCFA</td><td className="px-6 py-4 whitespace-nowrap">{inv.total.toLocaleString()} FCFA</td><td className="px-6 py-4 whitespace-nowrap">{inv.Payments?.reduce((sum: number, p: any) => sum + p.amount, 0).toLocaleString() || 0} FCFA</td></tr>
+                <tr key={inv.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">{new Date(inv.createdAt).toLocaleDateString('fr-FR')}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">1</td>
+                  <td className="px-6 py-4 whitespace-nowrap">1</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{inv.subtotal.toLocaleString()} FCFA</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{inv.taxTotal.toLocaleString()} FCFA</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{inv.total.toLocaleString()} FCFA</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{inv.Payments?.reduce((sum: number, p: any) => sum + p.amount, 0).toLocaleString() || 0} FCFA</td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -341,11 +359,25 @@ const Reports: React.FC = () => {
         </div>
       )}
       <div className="bg-white rounded shadow overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ventes</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chiffre d'affaires</th></tr></thead>
+        <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ventes</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chiffre d'affaires</th>
+            </tr>
+          </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {productsData.map((p, idx) => (
-              <tr key={idx}><td className="px-6 py-4 whitespace-nowrap">{p.name}</td><td className="px-6 py-4 whitespace-nowrap"><span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Produit</span></td><td className="px-6 py-4 whitespace-nowrap">{p.count}</td><td className="px-6 py-4 whitespace-nowrap">{p.quantity}</td><td className="px-6 py-4 whitespace-nowrap">{p.revenue.toLocaleString()} FCFA</td></tr>
+              <tr key={idx}>
+                <td className="px-6 py-4 whitespace-nowrap">{p.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Produit</span></td>
+                <td className="px-6 py-4 whitespace-nowrap">{p.count}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{p.quantity}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{p.revenue.toLocaleString()} FCFA</td>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -355,11 +387,27 @@ const Reports: React.FC = () => {
 
   const renderClientsTab = () => (
     <div className="bg-white rounded shadow overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factures</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total achats</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payé</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dernier achat</th></tr></thead>
+      <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factures</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total achats</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payé</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dernier achat</th>
+          </tr>
+        </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {clientsData.map((c) => (
-            <tr key={c.id}><td className="px-6 py-4 whitespace-nowrap">{c.name}</td><td className="px-6 py-4 whitespace-nowrap">{c.code}</td><td className="px-6 py-4 whitespace-nowrap">{c.invoicesCount}</td><td className="px-6 py-4 whitespace-nowrap">{c.totalSpent.toLocaleString()} FCFA</td><td className="px-6 py-4 whitespace-nowrap">{c.totalPaid.toLocaleString()} FCFA</td><td className="px-6 py-4 whitespace-nowrap">{c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleString('fr-FR') : '-'}</td></tr>
+            <tr key={c.id}>
+              <td className="px-6 py-4 whitespace-nowrap">{c.name}</td>
+              <td className="px-6 py-4 whitespace-nowrap">{c.code}</td>
+              <td className="px-6 py-4 whitespace-nowrap">{c.invoicesCount}</td>
+              <td className="px-6 py-4 whitespace-nowrap">{c.totalSpent.toLocaleString()} FCFA</td>
+              <td className="px-6 py-4 whitespace-nowrap">{c.totalPaid.toLocaleString()} FCFA</td>
+              <td className="px-6 py-4 whitespace-nowrap">{c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleString('fr-FR') : '-'}</td>
+            </tr>
           ))}
         </tbody>
       </table>
@@ -381,11 +429,23 @@ const Reports: React.FC = () => {
       )}
       {paymentsData?.payments && (
         <div className="bg-white rounded shadow overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th></tr></thead>
+          <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
+              </tr>
+            </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paymentsData.payments.map((p: any) => (
-                <tr key={p.id}><td className="px-6 py-4 whitespace-nowrap">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td><td className="px-6 py-4 whitespace-nowrap">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td><td className="px-6 py-4 whitespace-nowrap">1</td><td className="px-6 py-4 whitespace-nowrap">{p.amount.toLocaleString()} FCFA</td></tr>
+                <tr key={p.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">1</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{p.amount.toLocaleString()} FCFA</td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -395,27 +455,27 @@ const Reports: React.FC = () => {
   );
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold mb-6">Gestion Factures - Tableau de bord</h1>
+    <div className="p-4 md:p-6">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">Rapports et analyses</h1>
 
       {/* Filtres et actions */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border rounded px-3 py-2" />
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border rounded px-3 py-2" />
-          <button onClick={() => { if (activeTab === 'sales') fetchSalesReport(); if (activeTab === 'products') fetchProductsReport(); if (activeTab === 'clients') fetchClientsReport(); if (activeTab === 'payments') fetchPaymentsReport(); }} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center"><FiRefreshCw className="mr-2" /> Actualiser</button>
+        <div className="flex flex-wrap items-center gap-3">
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border rounded px-3 py-2 text-sm" />
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border rounded px-3 py-2 text-sm" />
+          <button onClick={() => { if (activeTab === 'sales') fetchSalesReport(); if (activeTab === 'products') fetchProductsReport(); if (activeTab === 'clients') fetchClientsReport(); if (activeTab === 'payments') fetchPaymentsReport(); }} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-1 text-sm"><FiRefreshCw className="mr-1" /> Actualiser</button>
           <div className="flex gap-2 ml-auto">
-            <button onClick={exportToCSV} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"><FiDownload className="mr-2" /> Excel</button>
-            <button onClick={exportToPDF} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center"><FiDownload className="mr-2" /> PDF</button>
+            <button onClick={exportToCSV} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-1 text-sm"><FiDownload className="mr-1" /> Excel</button>
+            <button onClick={exportToPDF} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-1 text-sm"><FiDownload className="mr-1" /> PDF</button>
           </div>
         </div>
       </div>
 
       {/* Onglets */}
       <div className="border-b border-gray-200 mb-6">
-        <nav className="flex space-x-8">
+        <nav className="flex flex-wrap gap-4">
           {(['sales', 'products', 'clients', 'payments'] as ReportType[]).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`py-2 px-1 border-b-2 font-medium text-sm capitalize ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`py-2 px-1 border-b-2 font-medium text-sm capitalize ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {tab === 'sales' ? 'Ventes' : tab === 'products' ? 'Produits' : tab === 'clients' ? 'Clients' : 'Paiements'}
             </button>
           ))}
@@ -425,7 +485,7 @@ const Reports: React.FC = () => {
       {/* Contenu */}
       {loading && <div className="text-center py-10">Chargement...</div>}
       {!loading && (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6">
           {activeTab === 'sales' && renderSalesTab()}
           {activeTab === 'products' && renderProductsTab()}
           {activeTab === 'clients' && renderClientsTab()}

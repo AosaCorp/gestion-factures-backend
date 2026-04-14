@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { FiSearch, FiFilter, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
 import { exportToCSV } from '../services/exportService';
-import api from '../services/api'; // ← ajout
+import api from '../services/api';
 
 const Invoices: React.FC = () => {
   const { user } = useAuth();
@@ -73,7 +73,7 @@ const Invoices: React.FC = () => {
       cancelled: 'bg-red-100 text-red-800'
     };
     const labels = { draft: 'En attente', paid: 'Payée', cancelled: 'Annulée' };
-    return <span className={`px-2 py-1 rounded text-xs font-medium ${colors[status as keyof typeof colors]}`}>{labels[status as keyof typeof labels]}</span>;
+    return <span className={`px-2 py-1 text-xs rounded-full ${colors[status as keyof typeof colors]}`}>{labels[status as keyof typeof labels]}</span>;
   };
 
   const handleCancel = async (id: number) => {
@@ -108,14 +108,9 @@ const Invoices: React.FC = () => {
       const dataForExport = allInvoices.map(inv => ({
         numero: inv.number,
         client: inv.client?.name || 'N/A',
-        code_client: inv.client ? `CLI${inv.client.id}` : '',
         date: new Date(inv.createdAt).toLocaleDateString('fr-FR'),
-        montant_ht: inv.subtotal.toFixed(2),
-        tva: inv.taxTotal.toFixed(2),
-        total_ttc: inv.total.toFixed(2),
-        paye: inv.Payments?.reduce((sum, p) => sum + p.amount, 0).toFixed(2) || 0,
+        total_ttc: inv.total,
         statut: inv.status === 'draft' ? 'En attente' : inv.status === 'paid' ? 'Payée' : 'Annulée',
-        date_paiement: inv.paidAt ? new Date(inv.paidAt).toLocaleDateString('fr-FR') : ''
       }));
       await exportToCSV(dataForExport, 'factures');
       toast.success('Export réussi');
@@ -130,38 +125,38 @@ const Invoices: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold mb-6">Gestion des factures</h1>
+    <div className="p-4 md:p-6">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">Gestion des factures</h1>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Total factures</p>
-          <p className="text-2xl font-bold">{stats.totalInvoices}</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-3 md:p-4">
+          <p className="text-xs md:text-sm text-gray-500">Total factures</p>
+          <p className="text-lg md:text-2xl font-bold">{stats.totalInvoices}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Total encaissé</p>
-          <p className="text-2xl font-bold">{stats.totalPaid.toLocaleString()} FCFA</p>
+        <div className="bg-white rounded-lg shadow p-3 md:p-4">
+          <p className="text-xs md:text-sm text-gray-500">Total encaissé</p>
+          <p className="text-lg md:text-2xl font-bold">{stats.totalPaid.toLocaleString()} F</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Total impayé</p>
-          <p className="text-2xl font-bold">{stats.totalUnpaid.toLocaleString()} FCFA</p>
+        <div className="bg-white rounded-lg shadow p-3 md:p-4">
+          <p className="text-xs md:text-sm text-gray-500">Total impayé</p>
+          <p className="text-lg md:text-2xl font-bold">{stats.totalUnpaid.toLocaleString()} F</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Montant moyen</p>
-          <p className="text-2xl font-bold">{stats.averageAmount.toLocaleString()} FCFA</p>
+        <div className="bg-white rounded-lg shadow p-3 md:p-4">
+          <p className="text-xs md:text-sm text-gray-500">Montant moyen</p>
+          <p className="text-lg md:text-2xl font-bold">{stats.averageAmount.toLocaleString()} F</p>
         </div>
       </div>
 
-      {/* Filtres et actions */}
+      {/* Filtres */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[180px]">
             <input
               type="text"
-              placeholder="Rechercher par n° facture, client..."
+              placeholder="Rechercher n° facture, client..."
               onChange={(e) => debouncedSearch(e.target.value)}
-              className="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2"
+              className="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2 text-sm"
             />
             <FiSearch className="absolute left-3 top-3 text-gray-400" />
           </div>
@@ -170,81 +165,68 @@ const Invoices: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="border border-gray-300 rounded-md px-3 py-2"
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
             >
-              <option value="">Tous les statuts</option>
+              <option value="">Tous</option>
               <option value="draft">En attente</option>
               <option value="paid">Payée</option>
               <option value="cancelled">Annulée</option>
             </select>
           </div>
-          <button
-            onClick={handleExport}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center ml-auto"
-          >
-            <FiDownload className="mr-2" /> Exporter CSV
+          <button onClick={handleExport} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-1 text-sm">
+            <FiDownload /> CSV
           </button>
           {(user?.role === 'cashier' || user?.role === 'admin') && (
-            <Link to="/invoices/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <Link to="/invoices/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
               Nouvelle facture
             </Link>
           )}
         </div>
       </div>
 
-      {/* Tableau */}
+      {/* Tableau scrollable */}
       {loading ? (
         <p>Chargement...</p>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-[900px] md:min-w-full w-full text-sm md:text-base">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Facture</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payé</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                 </tr>
+                  <th className="px-4 py-2 text-left">N° Facture</th>
+                  <th className="px-4 py-2 text-left">Client</th>
+                  <th className="px-4 py-2 text-left">Date</th>
+                  <th className="px-4 py-2 text-right">Montant</th>
+                  <th className="px-4 py-2 text-right">Payé</th>
+                  <th className="px-4 py-2 text-left">Statut</th>
+                  <th className="px-4 py-2 text-left">Actions</th>
+                </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {invoices.map((invoice) => {
+              <tbody className="divide-y divide-gray-200">
+                {invoices.map(invoice => {
                   const paid = getPaidAmount(invoice);
                   return (
-                    <tr key={invoice.id}>
-                      <td className="px-6 py-4 whitespace-nowrap font-mono">{invoice.number}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{invoice.client?.name || 'N/A'}</div>
-                        <div className="text-sm text-gray-500">CLI{invoice.client?.id || ''}</div>
+                    <tr key={invoice.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 whitespace-nowrap font-mono text-sm">{invoice.number}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <div className="font-medium">{invoice.client?.name || 'N/A'}</div>
+                        <div className="text-xs text-gray-500">CLI{invoice.client?.id || ''}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">{new Date(invoice.createdAt).toLocaleDateString('fr-FR')} {new Date(invoice.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{invoice.total.toLocaleString()} FCFA</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{paid.toLocaleString()} FCFA</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(invoice.status)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link to={`/invoices/${invoice.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
-                          <FiEye className="inline" />
-                        </Link>
-                        <button
-                          onClick={() => handleDownloadPdf(invoice.id)}
-                          className="text-purple-600 hover:text-purple-900 mr-3"
-                          title="Télécharger PDF"
-                        >
-                          <FiDownload className="inline" />
-                        </button>
-                        {invoice.status === 'draft' && (user?.role === 'cashier' || user?.role === 'admin') && (
-                          <Link to={`/invoices/edit/${invoice.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
-                            <FiEdit className="inline" />
-                          </Link>
-                        )}
-                        {invoice.status === 'draft' && user?.role === 'admin' && (
-                          <button onClick={() => handleCancel(invoice.id)} className="text-red-600 hover:text-red-900" title="Annuler">
-                            <FiTrash2 className="inline" />
-                          </button>
-                        )}
+                      <td className="px-4 py-2 whitespace-nowrap">{new Date(invoice.createdAt).toLocaleDateString('fr-FR')}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-right">{invoice.total.toLocaleString()} F</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-right">{paid.toLocaleString()} F</td>
+                      <td className="px-4 py-2 whitespace-nowrap">{getStatusBadge(invoice.status)}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <Link to={`/invoices/${invoice.id}`} title="Voir" className="text-indigo-600"><FiEye className="w-5 h-5" /></Link>
+                          <button onClick={() => handleDownloadPdf(invoice.id)} title="PDF" className="text-purple-600"><FiDownload className="w-5 h-5" /></button>
+                          {invoice.status === 'draft' && (user?.role === 'cashier' || user?.role === 'admin') && (
+                            <Link to={`/invoices/edit/${invoice.id}`} title="Modifier" className="text-yellow-600"><FiEdit className="w-5 h-5" /></Link>
+                          )}
+                          {invoice.status === 'draft' && user?.role === 'admin' && (
+                            <button onClick={() => handleCancel(invoice.id)} title="Annuler" className="text-red-600"><FiTrash2 className="w-5 h-5" /></button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -252,24 +234,10 @@ const Invoices: React.FC = () => {
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
-          <div className="flex justify-center mt-4 space-x-2">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Précédent
-            </button>
+          <div className="flex justify-center mt-4 gap-2 text-sm">
+            <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Précédent</button>
             <span className="px-3 py-1">Page {page} / {totalPages}</span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Suivant
-            </button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Suivant</button>
           </div>
         </>
       )}
