@@ -18,10 +18,10 @@ import {
 } from 'chart.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import Papa from 'papaparse';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import api from '../services/api';
+import { exportToCSV } from '../services/exportService';
 
 ChartJS.register(
   CategoryScale,
@@ -117,27 +117,26 @@ const Reports: React.FC = () => {
     }
   };
 
-  // Export CSV (Capacitor)
-  const exportToCSV = async () => {
+  const handleExportCSV = async () => {
     let data: any[] = [];
     let filename = 'rapport';
-    if (activeTab === 'sales' && salesData) {
+    if (activeTab === 'sales' && salesData?.invoices) {
       data = salesData.invoices.map((inv: any) => ({
         Numéro: inv.number,
         Client: inv.client?.name || '',
         Date: new Date(inv.createdAt).toLocaleDateString('fr-FR'),
         Total: inv.total,
-        Statut: inv.status,
+        Statut: inv.status === 'draft' ? 'En attente' : inv.status === 'paid' ? 'Payée' : 'Annulée',
       }));
-      filename = 'ventes.csv';
-    } else if (activeTab === 'products' && productsData) {
+      filename = 'ventes';
+    } else if (activeTab === 'products' && productsData.length) {
       data = productsData.map((p: any) => ({
         Produit: p.name,
         Quantité: p.quantity,
         'Chiffre d\'affaires': p.revenue,
       }));
-      filename = 'produits.csv';
-    } else if (activeTab === 'clients' && clientsData) {
+      filename = 'produits';
+    } else if (activeTab === 'clients' && clientsData.length) {
       data = clientsData.map((c: any) => ({
         Client: c.name,
         Code: c.code,
@@ -146,15 +145,15 @@ const Reports: React.FC = () => {
         Payé: c.totalPaid,
         'Dernier achat': c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleDateString('fr-FR') : '',
       }));
-      filename = 'clients.csv';
-    } else if (activeTab === 'payments' && paymentsData) {
+      filename = 'clients';
+    } else if (activeTab === 'payments' && paymentsData?.payments) {
       data = paymentsData.payments.map((p: any) => ({
         Date: new Date(p.createdAt).toLocaleDateString('fr-FR'),
         Montant: p.amount,
         Méthode: p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money',
         Facture: p.Invoice?.number || '',
       }));
-      filename = 'paiements.csv';
+      filename = 'paiements';
     }
 
     if (data.length === 0) {
@@ -163,27 +162,14 @@ const Reports: React.FC = () => {
     }
 
     try {
-      const csv = Papa.unparse(data);
-      const fileName = `${filename}.csv`;
-      await Filesystem.writeFile({
-        path: fileName,
-        data: csv,
-        directory: Directory.Documents,
-      });
-      await Share.share({
-        title: 'Export CSV',
-        text: `Fichier ${fileName}`,
-        url: `file://${fileName}`,
-      });
+      await exportToCSV(data, filename);
       toast.success('Export CSV réussi');
-    } catch (error) {
-      console.error('Erreur export CSV', error);
-      toast.error('Erreur lors de l\'export');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur export CSV');
     }
   };
 
-  // Export PDF (Capacitor)
-  const exportToPDF = async () => {
+  const handleExportPDF = async () => {
     if (!company) {
       toast.error('Informations entreprise non chargées');
       return;
@@ -192,7 +178,6 @@ const Reports: React.FC = () => {
     const doc = new jsPDF();
     let y = 20;
 
-    // Logo
     if (company.logo) {
       try {
         const base = api.defaults.baseURL?.replace('/api', '') || '';
@@ -257,7 +242,7 @@ const Reports: React.FC = () => {
         c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleDateString('fr-FR') : ''
       ]);
       autoTable(doc, { head: [tableColumn], body: tableRows, startY: y });
-    } else if (activeTab === 'payments' && paymentsData) {
+    } else if (activeTab === 'payments' && paymentsData?.payments) {
       const tableColumn = ["Date", "Montant", "Méthode", "Facture"];
       const tableRows = paymentsData.payments.map((p: any) => [
         new Date(p.createdAt).toLocaleDateString('fr-FR'),
@@ -272,27 +257,31 @@ const Reports: React.FC = () => {
     }
 
     const pdfData = doc.output('blob');
-const reader = new FileReader();
-reader.readAsDataURL(pdfData);
-reader.onloadend = async () => {
-  const base64 = (reader.result as string).split(',')[1];
-  const fileName = `rapport_${activeTab}.pdf`;
-  const result = await Filesystem.writeFile({
-    path: fileName,
-    data: base64,
-    directory: Directory.Documents,
-  });
-  await Share.share({
-    title: 'Export PDF',
-    text: `Fichier ${fileName}`,
-    url: result.uri,
-  });
-  toast.success('Export PDF réussi');
-};
-reader.onerror = () => toast.error('Erreur génération PDF');
+    const reader = new FileReader();
+    reader.readAsDataURL(pdfData);
+    reader.onloadend = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const fileName = `rapport_${activeTab}.pdf`;
+      try {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Documents,
+        });
+        await Share.share({
+          title: 'Export PDF',
+          text: `Fichier ${fileName}`,
+          url: result.uri,
+        });
+        toast.success('Export PDF réussi');
+      } catch (error) {
+        console.error('Erreur sauvegarde PDF', error);
+        toast.error('Erreur lors de l\'export PDF');
+      }
+    };
+    reader.onerror = () => toast.error('Erreur génération PDF');
   };
 
-  // ========== Rendu des onglets avec overflow-x-auto ==========
   const renderSalesTab = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -454,20 +443,18 @@ reader.onerror = () => toast.error('Erreur génération PDF');
     <div className="p-4 md:p-6">
       <h1 className="text-2xl md:text-3xl font-bold mb-6">Rapports et analyses</h1>
 
-      {/* Filtres et actions */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex flex-wrap items-center gap-3">
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border rounded px-3 py-2 text-sm" />
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border rounded px-3 py-2 text-sm" />
           <button onClick={() => { if (activeTab === 'sales') fetchSalesReport(); if (activeTab === 'products') fetchProductsReport(); if (activeTab === 'clients') fetchClientsReport(); if (activeTab === 'payments') fetchPaymentsReport(); }} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-1 text-sm"><FiRefreshCw className="mr-1" /> Actualiser</button>
           <div className="flex gap-2 ml-auto">
-            <button onClick={exportToCSV} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-1 text-sm"><FiDownload className="mr-1" /> Excel</button>
-            <button onClick={exportToPDF} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-1 text-sm"><FiDownload className="mr-1" /> PDF</button>
+            <button onClick={handleExportCSV} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-1 text-sm"><FiDownload className="mr-1" /> Excel</button>
+            <button onClick={handleExportPDF} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-1 text-sm"><FiDownload className="mr-1" /> PDF</button>
           </div>
         </div>
       </div>
 
-      {/* Onglets */}
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex flex-wrap gap-4">
           {(['sales', 'products', 'clients', 'payments'] as ReportType[]).map(tab => (
@@ -478,7 +465,6 @@ reader.onerror = () => toast.error('Erreur génération PDF');
         </nav>
       </div>
 
-      {/* Contenu */}
       {loading && <div className="text-center py-10">Chargement...</div>}
       {!loading && (
         <div className="bg-white rounded-lg shadow p-4 md:p-6">

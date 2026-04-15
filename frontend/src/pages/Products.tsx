@@ -87,24 +87,28 @@ const Products: React.FC = () => {
   };
 
   const handleExport = async () => {
-    try {
-      const allProducts = await productService.getAll();
-      const dataForExport = allProducts.map(p => ({
-        Nom: p.name,
-        Description: p.description || '',
-        Type: p.description === 'service' ? 'Service' : 'Produit',
-        'Prix HT': p.price,
-        'TVA (%)': p.taxRate,
-        'Prix TTC': Math.round(p.price * (1 + p.taxRate/100)),
-        'Date création': new Date(p.createdAt).toLocaleDateString('fr-FR')
-      }));
-      await exportToCSV(dataForExport, 'produits');
-      toast.success('Export réussi');
-    } catch (error) {
-      console.error('Erreur export', error);
-      toast.error('Erreur lors de l\'export');
+  try {
+    const allProducts = await productService.getAll();
+    if (!allProducts || allProducts.length === 0) {
+      toast.error('Aucun produit à exporter');
+      return;
     }
-  };
+    const dataForExport = allProducts.map(p => ({
+      Nom: p.name,
+      Description: p.description || '',
+      Type: p.description === 'service' ? 'Service' : 'Produit',
+      'Prix HT': p.price,
+      'TVA (%)': p.taxRate,
+      'Prix TTC': Math.round(p.price * (1 + p.taxRate/100)),
+      'Date création': new Date(p.createdAt).toLocaleDateString('fr-FR'),
+    }));
+    await exportToCSV(dataForExport, 'produits');
+    toast.success('Export réussi');
+  } catch (error: any) {
+    console.error('Erreur export produits:', error);
+    toast.error(error.message || 'Erreur lors de l\'export');
+  }
+};
 
   const filteredProducts = products.filter(p => {
     if (typeFilter === 'product') return p.description !== 'service';

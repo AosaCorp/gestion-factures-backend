@@ -77,22 +77,27 @@ const Clients: React.FC = () => {
   };
 
   const handleExport = async () => {
-    try {
-      const all = await clientService.getAll();
-      const data = all.map(c => ({
-        'Code client': `CLI${c.id}`,
-        'Nom': c.name,
-        'Email': c.email || '',
-        'Téléphone': c.phone || '',
-        'Adresse': c.address || '',
-        'Date inscription': new Date(c.createdAt).toLocaleDateString('fr-FR'),
-      }));
-      await exportToCSV(data, 'clients');
-      toast.success('Export réussi');
-    } catch (error) {
-      toast.error('Erreur export');
+  try {
+    const allClients = await clientService.getAll();
+    if (!allClients || allClients.length === 0) {
+      toast.error('Aucun client à exporter');
+      return;
     }
-  };
+    const dataForExport = allClients.map(c => ({
+      'Code client': `CLI${c.id}`,
+      'Nom': c.name,
+      'Email': c.email || '',
+      'Téléphone': c.phone || '',
+      'Adresse': c.address || '',
+      'Date inscription': new Date(c.createdAt).toLocaleDateString('fr-FR'),
+    }));
+    await exportToCSV(dataForExport, 'clients');
+    toast.success('Export réussi');
+  } catch (error: any) {
+    console.error('Erreur export clients:', error);
+    toast.error(error.message || 'Erreur lors de l\'export');
+  }
+};
 
   return (
     <div className="p-4 md:p-6">
