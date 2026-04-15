@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { reportService } from '../services/reportService';
 import { companyService } from '../services/companyService';
-import { productService } from '../services/productService'; // ← ajout
+import { productService } from '../services/productService';
 import toast from 'react-hot-toast';
 import { FiDownload, FiRefreshCw } from 'react-icons/fi';
 import { Line, Bar, Pie } from 'react-chartjs-2';
@@ -82,7 +82,6 @@ const Reports: React.FC = () => {
     }
   };
 
-  // Correction : récupérer tous les produits, pas seulement les plus vendus
   const fetchProductsReport = async () => {
     setLoading(true);
     try {
@@ -119,6 +118,7 @@ const Reports: React.FC = () => {
     }
   };
 
+  // ========== Export CSV ==========
   const handleExportCSV = async () => {
     let data: any[] = [];
     let filename = 'rapport';
@@ -173,6 +173,7 @@ const Reports: React.FC = () => {
     }
   };
 
+  // ========== Export PDF ==========
   const handleExportPDF = async () => {
     if (!company) {
       toast.error('Informations entreprise non chargées');
@@ -275,7 +276,7 @@ const Reports: React.FC = () => {
         const result = await Filesystem.writeFile({
           path: fileName,
           data: base64,
-          directory: Directory.Cache, // ← Changement
+          directory: Directory.Data,
         });
         await Share.share({
           title: 'Export PDF',
@@ -290,6 +291,8 @@ const Reports: React.FC = () => {
     };
     reader.onerror = () => toast.error('Erreur génération PDF');
   };
+
+  // ========== Rendu des onglets ==========
   const renderSalesTab = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -346,60 +349,59 @@ const Reports: React.FC = () => {
 
   const renderProductsTab = () => (
     <div className="space-y-6">
-      {productsData.length > 0 && (
-        <div className="bg-white p-4 rounded shadow">
-          <Pie data={{ labels: productsData.map(p => p.name), datasets: [{ data: productsData.map(p => p.quantity), backgroundColor: ['rgba(255,99,132,0.8)','rgba(54,162,235,0.8)','rgba(255,206,86,0.8)','rgba(75,192,192,0.8)','rgba(153,102,255,0.8)'] }] }} options={{ responsive: true }} />
-        </div>
-      )}
-      <div className="bg-white rounded shadow overflow-x-auto">
-        <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ventes</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chiffre d'affaires</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {productsData.map((p, idx) => (
-              <tr key={idx}>
-                <td className="px-6 py-4 whitespace-nowrap">{p.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Produit</span></td>
-                <td className="px-6 py-4 whitespace-nowrap">{p.count}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{p.quantity}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{p.revenue.toLocaleString()} FCFA</td>
+      {productsData.length > 0 ? (
+        <div className="bg-white rounded shadow overflow-x-auto">
+          <table className="min-w-[600px] w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left">Nom</th>
+                <th className="px-4 py-2 text-left">Description</th>
+                <th className="px-4 py-2 text-right">Prix HT</th>
+                <th className="px-4 py-2 text-right">TVA</th>
+                <th className="px-4 py-2 text-right">Prix TTC</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {productsData.map((p, idx) => (
+                <tr key={idx} className="border-t">
+                  <td className="px-4 py-2">{p.name}</td>
+                  <td className="px-4 py-2">{p.description || '-'}</td>
+                  <td className="px-4 py-2 text-right">{p.price.toLocaleString()} FCFA</td>
+                  <td className="px-4 py-2 text-right">{p.taxRate}%</td>
+                  <td className="px-4 py-2 text-right">{Math.round(p.price * (1 + p.taxRate / 100)).toLocaleString()} FCFA</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-center py-10">Aucun produit trouvé</p>
+      )}
     </div>
   );
 
   const renderClientsTab = () => (
     <div className="bg-white rounded shadow overflow-x-auto">
-      <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
+      <table className="min-w-[800px] w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factures</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total achats</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payé</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dernier achat</th>
+            <th className="px-4 py-2 text-left">Client</th>
+            <th className="px-4 py-2 text-left">Code</th>
+            <th className="px-4 py-2 text-right">Factures</th>
+            <th className="px-4 py-2 text-right">Total achats</th>
+            <th className="px-4 py-2 text-right">Payé</th>
+            <th className="px-4 py-2 text-left">Dernier achat</th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody>
           {clientsData.map((c) => (
-            <tr key={c.id}>
-              <td className="px-6 py-4 whitespace-nowrap">{c.name}</td>
-              <td className="px-6 py-4 whitespace-nowrap">{c.code}</td>
-              <td className="px-6 py-4 whitespace-nowrap">{c.invoicesCount}</td>
-              <td className="px-6 py-4 whitespace-nowrap">{c.totalSpent.toLocaleString()} FCFA</td>
-              <td className="px-6 py-4 whitespace-nowrap">{c.totalPaid.toLocaleString()} FCFA</td>
-              <td className="px-6 py-4 whitespace-nowrap">{c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleString('fr-FR') : '-'}</td>
+            <tr key={c.id} className="border-t">
+              <td className="px-4 py-2">{c.name}</td>
+              <td className="px-4 py-2">{c.code}</td>
+              <td className="px-4 py-2 text-right">{c.invoicesCount}</td>
+              <td className="px-4 py-2 text-right">{c.totalSpent.toLocaleString()} FCFA</td>
+              <td className="px-4 py-2 text-right">{c.totalPaid.toLocaleString()} FCFA</td>
+              <td className="px-4 py-2">{c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleString('fr-FR') : '-'}</td>
             </tr>
           ))}
         </tbody>
@@ -422,22 +424,22 @@ const Reports: React.FC = () => {
       )}
       {paymentsData?.payments && (
         <div className="bg-white rounded shadow overflow-x-auto">
-          <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
+          <table className="min-w-[800px] w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
+                <th className="px-4 py-2 text-left">Date</th>
+                <th className="px-4 py-2 text-left">Mode</th>
+                <th className="px-4 py-2 text-right">Montant</th>
+                <th className="px-4 py-2 text-left">Facture</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {paymentsData.payments.map((p: any) => (
-                <tr key={p.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">1</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{p.amount.toLocaleString()} FCFA</td>
+                <tr key={p.id} className="border-t">
+                  <td className="px-4 py-2">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td>
+                  <td className="px-4 py-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
+                  <td className="px-4 py-2 text-right">{p.amount.toLocaleString()} FCFA</td>
+                  <td className="px-4 py-2">{p.Invoice?.number || '-'}</td>
                 </tr>
               ))}
             </tbody>

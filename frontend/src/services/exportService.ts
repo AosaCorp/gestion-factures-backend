@@ -9,10 +9,11 @@ export const exportToCSV = async (data: any[], filename: string) => {
     }
     const csv = Papa.unparse(data);
     const fileName = `${filename}.csv`;
+    // Utilisation de Directory.Data (dossier privé, pas besoin de permission)
     const result = await Filesystem.writeFile({
       path: fileName,
       data: csv,
-      directory: Directory.Cache, // ← Changement clé
+      directory: Directory.Data,
     });
     await Share.share({
       title: 'Export CSV',

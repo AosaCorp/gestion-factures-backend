@@ -77,7 +77,7 @@ const InvoiceDetail: React.FC = () => {
       const result = await Filesystem.writeFile({
   path: fileName,
   data: base64,
-  directory: Directory.Cache,
+  directory: Directory.Data,
 });
       await Share.share({
         title: 'Facture',
