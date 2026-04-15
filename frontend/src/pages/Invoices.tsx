@@ -5,10 +5,10 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiSearch, FiFilter, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
-import { exportToCSV } from '../services/exportService';
+import api from '../services/api';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import api from '../services/api';
+import Papa from 'papaparse';
 
 const Invoices: React.FC = () => {
   const { user } = useAuth();
@@ -92,47 +92,67 @@ const Invoices: React.FC = () => {
   };
 
   const handleDownloadPdf = async (id: number) => {
-  try {
-    const blob = await invoiceService.getPdf(id);
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = async () => {
-      const base64 = (reader.result as string).split(',')[1];
-      const fileName = `facture-${id}.pdf`;
-      const result = await Filesystem.writeFile({
-  path: fileName,
-  data: base64,
-  directory: Directory.Data,
-});
-      await Share.share({
-        title: 'Facture',
-        text: `Facture ${id}`,
-        url: result.uri,
-      });
-      toast.success('PDF prêt à être partagé');
-    };
-    reader.onerror = () => toast.error('Erreur lecture PDF');
-  } catch (error) {
-    console.error('Erreur téléchargement PDF', error);
-    toast.error('Erreur lors du téléchargement');
-  }
-};
+    try {
+      const blob = await invoiceService.getPdf(id);
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        const fileName = `facture-${id}.pdf`;
+        await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Cache,
+        });
+        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+        await Share.share({
+          title: 'Facture',
+          text: `Facture ${id}`,
+          url: uri.uri,
+        });
+        toast.success('PDF prêt à être partagé');
+      };
+      reader.onerror = () => toast.error('Erreur lecture PDF');
+    } catch (error) {
+      console.error('Erreur téléchargement PDF', error);
+      toast.error('Erreur lors du téléchargement');
+    }
+  };
 
   const handleExport = async () => {
     try {
       const allInvoices = await invoiceService.getAll();
+      if (!allInvoices || allInvoices.length === 0) {
+        toast.error('Aucune facture à exporter');
+        return;
+      }
       const dataForExport = allInvoices.map(inv => ({
-        numero: inv.number,
-        client: inv.client?.name || 'N/A',
-        date: new Date(inv.createdAt).toLocaleDateString('fr-FR'),
-        total_ttc: inv.total,
-        statut: inv.status === 'draft' ? 'En attente' : inv.status === 'paid' ? 'Payée' : 'Annulée',
+        Numéro: inv.number,
+        Client: inv.client?.name || 'N/A',
+        Date: new Date(inv.createdAt).toLocaleDateString('fr-FR'),
+        Montant_HT: inv.subtotal,
+        TVA: inv.taxTotal,
+        Total_TTC: inv.total,
+        Payé: inv.Payments?.reduce((sum, p) => sum + p.amount, 0) || 0,
+        Statut: inv.status === 'draft' ? 'En attente' : inv.status === 'paid' ? 'Payée' : 'Annulée',
       }));
-      await exportToCSV(dataForExport, 'factures');
+      const csv = Papa.unparse(dataForExport);
+      const fileName = 'factures.csv';
+      await Filesystem.writeFile({
+        path: fileName,
+        data: csv,
+        directory: Directory.Cache,
+      });
+      const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+      await Share.share({
+        title: 'Export CSV',
+        text: `Fichier ${fileName}`,
+        url: uri.uri,
+      });
       toast.success('Export réussi');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur export', error);
-      toast.error('Erreur lors de l\'export');
+      toast.error(error.message || 'Erreur lors de l\'export');
     }
   };
 
@@ -200,7 +220,7 @@ const Invoices: React.FC = () => {
         </div>
       </div>
 
-      {/* Tableau scrollable */}
+      {/* Tableau */}
       {loading ? (
         <p>Chargement...</p>
       ) : (
