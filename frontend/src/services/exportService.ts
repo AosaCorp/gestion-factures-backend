@@ -7,13 +7,12 @@ export const exportToCSV = async (data: any[], filename: string) => {
     if (!data || data.length === 0) {
       throw new Error('Aucune donnée à exporter');
     }
-    console.log('📊 Export CSV – données:', data);
     const csv = Papa.unparse(data);
     const fileName = `${filename}.csv`;
     const result = await Filesystem.writeFile({
       path: fileName,
       data: csv,
-      directory: Directory.Documents,
+      directory: Directory.Cache, // ← Changement clé
     });
     await Share.share({
       title: 'Export CSV',
@@ -22,7 +21,7 @@ export const exportToCSV = async (data: any[], filename: string) => {
     });
     return true;
   } catch (error: any) {
-    console.error('❌ Erreur export CSV:', error);
+    console.error('Erreur export CSV:', error);
     throw new Error(error.message || 'Erreur lors de l\'export');
   }
 };

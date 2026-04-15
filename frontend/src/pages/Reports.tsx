@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { reportService } from '../services/reportService';
 import { companyService } from '../services/companyService';
+import { productService } from '../services/productService'; // ← ajout
 import toast from 'react-hot-toast';
 import { FiDownload, FiRefreshCw } from 'react-icons/fi';
 import { Line, Bar, Pie } from 'react-chartjs-2';
@@ -81,10 +82,11 @@ const Reports: React.FC = () => {
     }
   };
 
+  // Correction : récupérer tous les produits, pas seulement les plus vendus
   const fetchProductsReport = async () => {
     setLoading(true);
     try {
-      const data = await reportService.getTopProducts(10, startDate, endDate);
+      const data = await productService.getAll();
       setProductsData(data);
     } catch (error) {
       toast.error('Erreur chargement rapport produits');
@@ -131,9 +133,11 @@ const Reports: React.FC = () => {
       filename = 'ventes';
     } else if (activeTab === 'products' && productsData.length) {
       data = productsData.map((p: any) => ({
-        Produit: p.name,
-        Quantité: p.quantity,
-        'Chiffre d\'affaires': p.revenue,
+        Nom: p.name,
+        Description: p.description || '',
+        'Prix HT': p.price,
+        'TVA (%)': p.taxRate,
+        'Prix TTC': Math.round(p.price * (1 + p.taxRate / 100)),
       }));
       filename = 'produits';
     } else if (activeTab === 'clients' && clientsData.length) {
@@ -228,8 +232,13 @@ const Reports: React.FC = () => {
       ]);
       autoTable(doc, { head: [tableColumn], body: tableRows, startY: y });
     } else if (activeTab === 'products' && productsData.length > 0) {
-      const tableColumn = ["Produit", "Quantité", "Chiffre d'affaires"];
-      const tableRows = productsData.map((p: any) => [p.name, p.quantity, p.revenue + ' FCFA']);
+      const tableColumn = ["Produit", "Prix HT", "TVA", "Prix TTC"];
+      const tableRows = productsData.map((p: any) => [
+        p.name,
+        p.price + ' FCFA',
+        p.taxRate + '%',
+        Math.round(p.price * (1 + p.taxRate / 100)).toLocaleString() + ' FCFA'
+      ]);
       autoTable(doc, { head: [tableColumn], body: tableRows, startY: y });
     } else if (activeTab === 'clients' && clientsData.length > 0) {
       const tableColumn = ["Client", "Code", "Factures", "Total achats", "Payé", "Dernier achat"];
@@ -266,7 +275,7 @@ const Reports: React.FC = () => {
         const result = await Filesystem.writeFile({
           path: fileName,
           data: base64,
-          directory: Directory.Documents,
+          directory: Directory.Cache, // ← Changement
         });
         await Share.share({
           title: 'Export PDF',
@@ -281,7 +290,6 @@ const Reports: React.FC = () => {
     };
     reader.onerror = () => toast.error('Erreur génération PDF');
   };
-
   const renderSalesTab = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
