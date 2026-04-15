@@ -22,7 +22,7 @@ import autoTable from 'jspdf-autotable';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import api from '../services/api';
-import { exportToCSV } from '../services/exportService';
+import Papa from 'papaparse'; // ← ajout
 
 ChartJS.register(
   CategoryScale,
@@ -166,7 +166,19 @@ const Reports: React.FC = () => {
     }
 
     try {
-      await exportToCSV(data, filename);
+      const csv = Papa.unparse(data);
+      const fileName = `${filename}.csv`;
+      await Filesystem.writeFile({
+        path: fileName,
+        data: csv,
+        directory: Directory.Cache,
+      });
+      const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+      await Share.share({
+        title: 'Export CSV',
+        text: `Fichier ${fileName}`,
+        url: uri.uri,
+      });
       toast.success('Export CSV réussi');
     } catch (error: any) {
       toast.error(error.message || 'Erreur export CSV');
@@ -183,6 +195,7 @@ const Reports: React.FC = () => {
     const doc = new jsPDF();
     let y = 20;
 
+    // Logo
     if (company.logo) {
       try {
         const base = api.defaults.baseURL?.replace('/api', '') || '';
@@ -273,15 +286,16 @@ const Reports: React.FC = () => {
       const base64 = (reader.result as string).split(',')[1];
       const fileName = `rapport_${activeTab}.pdf`;
       try {
-        const result = await Filesystem.writeFile({
+        await Filesystem.writeFile({
           path: fileName,
           data: base64,
-          directory: Directory.Data,
+          directory: Directory.Cache,
         });
+        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
         await Share.share({
           title: 'Export PDF',
           text: `Fichier ${fileName}`,
-          url: result.uri,
+          url: uri.uri,
         });
         toast.success('Export PDF réussi');
       } catch (error) {

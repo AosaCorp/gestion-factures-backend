@@ -74,15 +74,19 @@ const InvoiceDetail: React.FC = () => {
     reader.onloadend = async () => {
       const base64 = (reader.result as string).split(',')[1];
       const fileName = `facture-${invoice.number}.pdf`;
-      const result = await Filesystem.writeFile({
-  path: fileName,
-  data: base64,
-  directory: Directory.Data,
-});
+      await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Cache,
+      });
+      const uri = await Filesystem.getUri({
+        path: fileName,
+        directory: Directory.Cache,
+      });
       await Share.share({
         title: 'Facture',
         text: `Facture ${invoice.number}`,
-        url: result.uri,
+        url: uri.uri,
       });
       toast.success('PDF prêt à être partagé');
     };

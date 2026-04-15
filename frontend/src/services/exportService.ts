@@ -9,16 +9,21 @@ export const exportToCSV = async (data: any[], filename: string) => {
     }
     const csv = Papa.unparse(data);
     const fileName = `${filename}.csv`;
-    // Utilisation de Directory.Data (dossier privé, pas besoin de permission)
-    const result = await Filesystem.writeFile({
+    // Écriture dans le cache (aucune permission nécessaire)
+    await Filesystem.writeFile({
       path: fileName,
       data: csv,
-      directory: Directory.Data,
+      directory: Directory.Cache,
+    });
+    // Récupération de l'URI absolue pour le partage
+    const uri = await Filesystem.getUri({
+      path: fileName,
+      directory: Directory.Cache,
     });
     await Share.share({
       title: 'Export CSV',
       text: `Fichier ${fileName}`,
-      url: result.uri,
+      url: uri.uri,
     });
     return true;
   } catch (error: any) {
