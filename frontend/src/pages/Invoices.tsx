@@ -6,6 +6,8 @@ import toast from 'react-hot-toast';
 import { FiSearch, FiFilter, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
 import { exportToCSV } from '../services/exportService';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import api from '../services/api';
 
 const Invoices: React.FC = () => {
@@ -90,17 +92,31 @@ const Invoices: React.FC = () => {
   };
 
   const handleDownloadPdf = async (id: number) => {
-    try {
-      const blob = await invoiceService.getPdf(id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `facture-${id}.pdf`;
-      a.click();
-    } catch (error) {
-      toast.error('Erreur téléchargement PDF');
-    }
-  };
+  try {
+    const blob = await invoiceService.getPdf(id);
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onloadend = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const fileName = `facture-${id}.pdf`;
+      const result = await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Documents,
+      });
+      await Share.share({
+        title: 'Facture',
+        text: `Facture ${id}`,
+        url: result.uri,
+      });
+      toast.success('PDF prêt à être partagé');
+    };
+    reader.onerror = () => toast.error('Erreur lecture PDF');
+  } catch (error) {
+    console.error('Erreur téléchargement PDF', error);
+    toast.error('Erreur lors du téléchargement');
+  }
+};
 
   const handleExport = async () => {
     try {

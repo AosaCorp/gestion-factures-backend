@@ -272,28 +272,24 @@ const Reports: React.FC = () => {
     }
 
     const pdfData = doc.output('blob');
-    const reader = new FileReader();
-    reader.readAsDataURL(pdfData);
-    reader.onloadend = async () => {
-      const base64 = (reader.result as string).split(',')[1];
-      const fileName = `rapport_${activeTab}.pdf`;
-      try {
-        await Filesystem.writeFile({
-          path: fileName,
-          data: base64,
-          directory: Directory.Documents,
-        });
-        await Share.share({
-          title: 'Export PDF',
-          text: `Fichier ${fileName}`,
-          url: `file://${fileName}`,
-        });
-        toast.success('Export PDF réussi');
-      } catch (error) {
-        console.error('Erreur sauvegarde PDF', error);
-        toast.error('Erreur lors de l\'export');
-      }
-    };
+const reader = new FileReader();
+reader.readAsDataURL(pdfData);
+reader.onloadend = async () => {
+  const base64 = (reader.result as string).split(',')[1];
+  const fileName = `rapport_${activeTab}.pdf`;
+  const result = await Filesystem.writeFile({
+    path: fileName,
+    data: base64,
+    directory: Directory.Documents,
+  });
+  await Share.share({
+    title: 'Export PDF',
+    text: `Fichier ${fileName}`,
+    url: result.uri,
+  });
+  toast.success('Export PDF réussi');
+};
+reader.onerror = () => toast.error('Erreur génération PDF');
   };
 
   // ========== Rendu des onglets avec overflow-x-auto ==========

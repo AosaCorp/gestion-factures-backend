@@ -19,15 +19,13 @@ const Users: React.FC = () => {
     try {
       setLoading(true);
       const data = await userService.getAll();
-      // Filtrer par recherche côté frontend (pour simplifier)
       const filtered = data.filter(u => 
         u.name.toLowerCase().includes(search.toLowerCase()) ||
         u.email.toLowerCase().includes(search.toLowerCase())
       );
-      const start = (page - 1) * limit;
-      const paginated = filtered.slice(start, start + limit);
-      setUsers(paginated);
       setTotalPages(Math.ceil(filtered.length / limit));
+      const start = (page - 1) * limit;
+      setUsers(filtered.slice(start, start + limit));
     } catch (error) {
       toast.error('Erreur chargement');
     } finally {
@@ -70,28 +68,25 @@ const Users: React.FC = () => {
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Jamais';
     const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Gestion des utilisateurs</h1>
+    <div className="p-4 md:p-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <h1 className="text-2xl font-bold">Gestion des utilisateurs</h1>
         {currentUser?.role === 'admin' && (
-          <Link to="/users/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            Nouvel utilisateur
-          </Link>
+          <Link to="/users/new" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Nouvel utilisateur</Link>
         )}
       </div>
 
-      {/* Barre de recherche */}
-      <div className="mb-4 flex items-center">
-        <div className="relative flex-1 max-w-md">
+      <div className="mb-4">
+        <div className="relative max-w-md">
           <input
             type="text"
             placeholder="Rechercher par nom, email..."
             onChange={handleSearchChange}
-            className="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2"
+            className="w-full border rounded-md pl-10 pr-4 py-2 text-sm"
           />
           <FiSearch className="absolute left-3 top-3 text-gray-400" />
         </div>
@@ -101,76 +96,53 @@ const Users: React.FC = () => {
         <p>Chargement...</p>
       ) : (
         <>
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="bg-white rounded-lg shadow overflow-x-auto">
+            <table className="min-w-[800px] w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisateur</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2FA</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dernière connexion</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date création</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-2 text-left">Utilisateur</th>
+                  <th className="px-4 py-2 text-left">Rôle</th>
+                  <th className="px-4 py-2 text-left">2FA</th>
+                  <th className="px-4 py-2 text-left">Dernière connexion</th>
+                  <th className="px-4 py-2 text-left">Date création</th>
+                  <th className="px-4 py-2 text-left">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200">
                 {users.map(u => (
                   <tr key={u.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{u.name}</div>
-                      <div className="text-sm text-gray-500">{u.email}</div>
+                    <td className="px-4 py-2">
+                      <div className="font-medium">{u.name}</div>
+                      <div className="text-xs text-gray-500">{u.email}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{getRoleLabel(u.role)}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.twoFactorEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                    <td className="px-4 py-2">{getRoleLabel(u.role)}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-1 text-xs rounded-full ${u.twoFactorEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                         {u.twoFactorEnabled ? 'Activé' : 'Désactivé'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(u.lastLogin)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(u.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link to={`/users/${u.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Voir">
-                        <FiEye className="inline" />
-                      </Link>
-                      {currentUser?.role === 'admin' && u.id !== currentUser.id && (
-                        <>
-                          <Link to={`/users/edit/${u.id}`} className="text-yellow-600 hover:text-yellow-900 mr-3" title="Modifier">
-                            <FiEdit className="inline" />
-                          </Link>
-                          <button onClick={() => handleDelete(u.id)} className="text-red-600 hover:text-red-900" title="Supprimer">
-                            <FiTrash2 className="inline" />
-                          </button>
-                        </>
-                      )}
+                    <td className="px-4 py-2 text-xs">{formatDate(u.lastLogin)}</td>
+                    <td className="px-4 py-2 text-xs">{formatDate(u.createdAt)}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex gap-2">
+                        <Link to={`/users/${u.id}`} title="Voir" className="text-indigo-600"><FiEye className="w-5 h-5" /></Link>
+                        {currentUser?.role === 'admin' && u.id !== currentUser.id && (
+                          <>
+                            <Link to={`/users/edit/${u.id}`} title="Modifier" className="text-yellow-600"><FiEdit className="w-5 h-5" /></Link>
+                            <button onClick={() => handleDelete(u.id)} title="Supprimer" className="text-red-600"><FiTrash2 className="w-5 h-5" /></button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {/* Pagination */}
-          <div className="flex justify-center mt-4 space-x-2">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Précédent
-            </button>
+          <div className="flex justify-center mt-4 gap-2 text-sm">
+            <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Précédent</button>
             <span className="px-3 py-1">Page {page} / {totalPages}</span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Suivant
-            </button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Suivant</button>
           </div>
         </>
       )}
