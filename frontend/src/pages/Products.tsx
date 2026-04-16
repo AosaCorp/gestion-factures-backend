@@ -5,7 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiSearch, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
-import { exportToCSV } from '../services/exportService';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import Papa from 'papaparse';
 
 const Products: React.FC = () => {
   const { user } = useAuth();
@@ -87,28 +89,40 @@ const Products: React.FC = () => {
   };
 
   const handleExport = async () => {
-  try {
-    const allProducts = await productService.getAll();
-    if (!allProducts || allProducts.length === 0) {
-      toast.error('Aucun produit à exporter');
-      return;
+    try {
+      const allProducts = await productService.getAll();
+      if (!allProducts || allProducts.length === 0) {
+        toast.error('Aucun produit à exporter');
+        return;
+      }
+      const dataForExport = allProducts.map(p => ({
+        Nom: p.name,
+        Description: p.description || '',
+        Type: p.description === 'service' ? 'Service' : 'Produit',
+        'Prix HT': p.price,
+        'TVA (%)': p.taxRate,
+        'Prix TTC': Math.round(p.price * (1 + p.taxRate/100)),
+        'Date création': new Date(p.createdAt).toLocaleDateString('fr-FR')
+      }));
+      const csv = Papa.unparse(dataForExport);
+      const fileName = 'produits.csv';
+      await Filesystem.writeFile({
+        path: fileName,
+        data: csv,
+        directory: Directory.Cache,
+      });
+      const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+      await Share.share({
+        title: 'Export CSV',
+        text: `Fichier ${fileName}`,
+        url: uri.uri,
+      });
+      toast.success('Export réussi');
+    } catch (error: any) {
+      console.error('Erreur export', error);
+      toast.error(error.message || 'Erreur lors de l\'export');
     }
-    const dataForExport = allProducts.map(p => ({
-      Nom: p.name,
-      Description: p.description || '',
-      Type: p.description === 'service' ? 'Service' : 'Produit',
-      'Prix HT': p.price,
-      'TVA (%)': p.taxRate,
-      'Prix TTC': Math.round(p.price * (1 + p.taxRate/100)),
-      'Date création': new Date(p.createdAt).toLocaleDateString('fr-FR'),
-    }));
-    await exportToCSV(dataForExport, 'produits');
-    toast.success('Export réussi');
-  } catch (error: any) {
-    console.error('Erreur export produits:', error);
-    toast.error(error.message || 'Erreur lors de l\'export');
-  }
-};
+  };
 
   const filteredProducts = products.filter(p => {
     if (typeFilter === 'product') return p.description !== 'service';
@@ -120,7 +134,7 @@ const Products: React.FC = () => {
     <div className="p-4 md:p-6">
       <h1 className="text-2xl md:text-3xl font-bold mb-6">Gestion des produits</h1>
 
-      {/* KPI Cards – responsive grid */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-3 md:p-4">
           <p className="text-xs md:text-sm text-gray-500">Total produits</p>
@@ -161,11 +175,8 @@ const Products: React.FC = () => {
             <option value="product">Produits</option>
             <option value="service">Services</option>
           </select>
-          <button
-            onClick={handleExport}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-1 text-sm"
-          >
-            <FiDownload className="text-sm" /> CSV
+          <button onClick={handleExport} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-1 text-sm">
+            <FiDownload /> CSV
           </button>
           {user?.role === 'admin' && (
             <Link to="/products/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
@@ -175,13 +186,13 @@ const Products: React.FC = () => {
         </div>
       </div>
 
-      {/* Tableau scrollable */}
+      {/* Tableau */}
       {loading ? (
         <p>Chargement...</p>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
+            <table className="min-w-[800px] w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-2 text-left">Nom</th>
@@ -197,18 +208,18 @@ const Products: React.FC = () => {
               <tbody className="divide-y divide-gray-200">
                 {filteredProducts.map(product => (
                   <tr key={product.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 whitespace-nowrap">{product.name}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">{product.description || '-'}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">
+                    <td className="px-4 py-2">{product.name}</td>
+                    <td className="px-4 py-2">{product.description || '-'}</td>
+                    <td className="px-4 py-2">
                       <span className={`px-2 py-1 text-xs rounded-full ${product.description === 'service' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
                         {product.description === 'service' ? 'Service' : 'Produit'}
                       </span>
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-right">{product.price.toLocaleString()} F</td>
-                    <td className="px-4 py-2 whitespace-nowrap text-right">{product.taxRate}%</td>
-                    <td className="px-4 py-2 whitespace-nowrap text-right">{Math.round(product.price * (1 + product.taxRate/100)).toLocaleString()} F</td>
-                    <td className="px-4 py-2 whitespace-nowrap">{new Date(product.createdAt).toLocaleDateString('fr-FR')}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">
+                    <td className="px-4 py-2 text-right">{product.price.toLocaleString()} F</td>
+                    <td className="px-4 py-2 text-right">{product.taxRate}%</td>
+                    <td className="px-4 py-2 text-right">{Math.round(product.price * (1 + product.taxRate/100)).toLocaleString()} F</td>
+                    <td className="px-4 py-2">{new Date(product.createdAt).toLocaleDateString('fr-FR')}</td>
+                    <td className="px-4 py-2">
                       <div className="flex gap-2">
                         <Link to={`/products/${product.id}`} title="Voir" className="text-indigo-600"><FiEye className="w-5 h-5" /></Link>
                         {user?.role === 'admin' && (
