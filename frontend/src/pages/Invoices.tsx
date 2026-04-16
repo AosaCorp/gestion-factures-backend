@@ -8,7 +8,7 @@ import debounce from 'lodash/debounce';
 import api from '../services/api';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import Papa from 'papaparse';
+import { exportToCSV } from '../services/exportService'; // ← import corrigé
 
 const Invoices: React.FC = () => {
   const { user } = useAuth();
@@ -102,9 +102,9 @@ const Invoices: React.FC = () => {
         await Filesystem.writeFile({
           path: fileName,
           data: base64,
-          directory: Directory.Cache,
+          directory: Directory.Data,
         });
-        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Data });
         await Share.share({
           title: 'Facture',
           text: `Facture ${id}`,
@@ -136,19 +136,7 @@ const Invoices: React.FC = () => {
         Payé: inv.Payments?.reduce((sum, p) => sum + p.amount, 0) || 0,
         Statut: inv.status === 'draft' ? 'En attente' : inv.status === 'paid' ? 'Payée' : 'Annulée',
       }));
-      const csv = Papa.unparse(dataForExport);
-      const fileName = 'factures.csv';
-      await Filesystem.writeFile({
-        path: fileName,
-        data: csv,
-        directory: Directory.Cache,
-      });
-      const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-      await Share.share({
-        title: 'Export CSV',
-        text: `Fichier ${fileName}`,
-        url: uri.uri,
-      });
+      await exportToCSV(dataForExport, 'factures');
       toast.success('Export réussi');
     } catch (error: any) {
       console.error('Erreur export', error);

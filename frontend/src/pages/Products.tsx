@@ -5,9 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiSearch, FiDownload, FiEye, FiEdit, FiTrash2 } from 'react-icons/fi';
 import debounce from 'lodash/debounce';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
-import Papa from 'papaparse';
+import { exportToCSV } from '../services/exportService';
 
 const Products: React.FC = () => {
   const { user } = useAuth();
@@ -104,22 +102,9 @@ const Products: React.FC = () => {
         'Prix TTC': Math.round(p.price * (1 + p.taxRate/100)),
         'Date création': new Date(p.createdAt).toLocaleDateString('fr-FR')
       }));
-      const csv = Papa.unparse(dataForExport);
-      const fileName = 'produits.csv';
-      await Filesystem.writeFile({
-        path: fileName,
-        data: csv,
-        directory: Directory.Cache,
-      });
-      const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-      await Share.share({
-        title: 'Export CSV',
-        text: `Fichier ${fileName}`,
-        url: uri.uri,
-      });
+      await exportToCSV(dataForExport, 'produits');
       toast.success('Export réussi');
     } catch (error: any) {
-      console.error('Erreur export', error);
       toast.error(error.message || 'Erreur lors de l\'export');
     }
   };

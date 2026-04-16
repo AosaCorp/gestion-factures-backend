@@ -22,7 +22,7 @@ import autoTable from 'jspdf-autotable';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import api from '../services/api';
-import Papa from 'papaparse'; // ← ajout
+import { exportToCSV } from '../services/exportService';
 
 ChartJS.register(
   CategoryScale,
@@ -166,19 +166,7 @@ const Reports: React.FC = () => {
     }
 
     try {
-      const csv = Papa.unparse(data);
-      const fileName = `${filename}.csv`;
-      await Filesystem.writeFile({
-        path: fileName,
-        data: csv,
-        directory: Directory.Cache,
-      });
-      const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-      await Share.share({
-        title: 'Export CSV',
-        text: `Fichier ${fileName}`,
-        url: uri.uri,
-      });
+      await exportToCSV(data, filename);
       toast.success('Export CSV réussi');
     } catch (error: any) {
       toast.error(error.message || 'Erreur export CSV');
@@ -195,7 +183,6 @@ const Reports: React.FC = () => {
     const doc = new jsPDF();
     let y = 20;
 
-    // Logo
     if (company.logo) {
       try {
         const base = api.defaults.baseURL?.replace('/api', '') || '';
@@ -284,17 +271,17 @@ const Reports: React.FC = () => {
     reader.readAsDataURL(pdfData);
     reader.onloadend = async () => {
       const base64 = (reader.result as string).split(',')[1];
-      const fileName = `rapport_${activeTab}.pdf`;
+      const fileName = `rapport_${activeTab}_${Date.now()}.pdf`;
       try {
         await Filesystem.writeFile({
           path: fileName,
           data: base64,
-          directory: Directory.Cache,
+          directory: Directory.Data,
         });
-        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Data });
         await Share.share({
           title: 'Export PDF',
-          text: `Fichier ${fileName}`,
+          text: `Fichier rapport_${activeTab}.pdf`,
           url: uri.uri,
         });
         toast.success('Export PDF réussi');
@@ -307,161 +294,168 @@ const Reports: React.FC = () => {
   };
 
   // ========== Rendu des onglets ==========
-  const renderSalesTab = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Chiffre d'affaires</p><p className="text-2xl font-bold">{salesData?.totalRevenue?.toLocaleString() || 0} FCFA</p></div>
-        <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Encaissé</p><p className="text-2xl font-bold">{salesData?.totalPaid?.toLocaleString() || 0} FCFA</p></div>
-        <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Factures</p><p className="text-2xl font-bold">{salesData?.count || 0}</p></div>
-        <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Clients</p><p className="text-2xl font-bold">{salesData?.invoices ? new Set(salesData.invoices.map((i: any) => i.client?.id)).size : 0}</p></div>
-      </div>
-      <div className="flex justify-end gap-2">
-        <button onClick={() => setChartType('line')} className={`px-3 py-1 rounded ${chartType === 'line' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Courbe</button>
-        <button onClick={() => setChartType('bar')} className={`px-3 py-1 rounded ${chartType === 'bar' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Barres</button>
-      </div>
-      {salesData?.salesByDate && salesData.salesByDate.length > 0 && (
-        <div className="bg-white p-4 rounded shadow">
-          {chartType === 'line' ? (
-            <Line data={{ labels: salesData.salesByDate.map((d: any) => d.date), datasets: [{ label: 'Chiffre d\'affaires', data: salesData.salesByDate.map((d: any) => d.revenue), borderColor: 'rgb(59, 130, 246)', backgroundColor: 'rgba(59, 130, 246, 0.5)' }, { label: 'Encaissé', data: salesData.salesByDate.map((d: any) => d.paid), borderColor: 'rgb(16, 185, 129)', backgroundColor: 'rgba(16, 185, 129, 0.5)' }] }} options={{ responsive: true }} />
-          ) : (
-            <Bar data={{ labels: salesData.salesByDate.map((d: any) => d.date), datasets: [{ label: 'Chiffre d\'affaires', data: salesData.salesByDate.map((d: any) => d.revenue), backgroundColor: 'rgba(59, 130, 246, 0.8)' }, { label: 'Encaissé', data: salesData.salesByDate.map((d: any) => d.paid), backgroundColor: 'rgba(16, 185, 129, 0.8)' }] }} options={{ responsive: true }} />
-          )}
+  const renderSalesTab = () => {
+    if (!salesData) return <p>Aucune donnée</p>;
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Chiffre d'affaires</p><p className="text-2xl font-bold">{salesData.totalRevenue?.toLocaleString() || 0} FCFA</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Encaissé</p><p className="text-2xl font-bold">{salesData.totalPaid?.toLocaleString() || 0} FCFA</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Factures</p><p className="text-2xl font-bold">{salesData.count || 0}</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Clients</p><p className="text-2xl font-bold">{salesData.invoices ? new Set(salesData.invoices.map((i: any) => i.client?.id)).size : 0}</p></div>
         </div>
-      )}
-      {salesData?.invoices && (
-        <div className="bg-white rounded shadow overflow-x-auto">
-          <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factures</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Clients</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">HT</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TVA</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TTC</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Encaissé</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {salesData.invoices.map((inv: any) => (
-                <tr key={inv.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">{new Date(inv.createdAt).toLocaleDateString('fr-FR')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">1</td>
-                  <td className="px-6 py-4 whitespace-nowrap">1</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{inv.subtotal.toLocaleString()} FCFA</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{inv.taxTotal.toLocaleString()} FCFA</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{inv.total.toLocaleString()} FCFA</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{inv.Payments?.reduce((sum: number, p: any) => sum + p.amount, 0).toLocaleString() || 0} FCFA</td>
+        <div className="flex justify-end gap-2">
+          <button onClick={() => setChartType('line')} className={`px-3 py-1 rounded ${chartType === 'line' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Courbe</button>
+          <button onClick={() => setChartType('bar')} className={`px-3 py-1 rounded ${chartType === 'bar' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Barres</button>
+        </div>
+        {salesData.salesByDate && salesData.salesByDate.length > 0 && (
+          <div className="bg-white p-4 rounded shadow">
+            {chartType === 'line' ? (
+              <Line data={{ labels: salesData.salesByDate.map((d: any) => d.date), datasets: [{ label: 'Chiffre d\'affaires', data: salesData.salesByDate.map((d: any) => d.revenue), borderColor: 'rgb(59, 130, 246)', backgroundColor: 'rgba(59, 130, 246, 0.5)' }, { label: 'Encaissé', data: salesData.salesByDate.map((d: any) => d.paid), borderColor: 'rgb(16, 185, 129)', backgroundColor: 'rgba(16, 185, 129, 0.5)' }] }} options={{ responsive: true }} />
+            ) : (
+              <Bar data={{ labels: salesData.salesByDate.map((d: any) => d.date), datasets: [{ label: 'Chiffre d\'affaires', data: salesData.salesByDate.map((d: any) => d.revenue), backgroundColor: 'rgba(59, 130, 246, 0.8)' }, { label: 'Encaissé', data: salesData.salesByDate.map((d: any) => d.paid), backgroundColor: 'rgba(16, 185, 129, 0.8)' }] }} options={{ responsive: true }} />
+            )}
+          </div>
+        )}
+        {salesData.invoices && (
+          <div className="bg-white rounded shadow overflow-x-auto">
+            <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factures</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Clients</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">HT</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TVA</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TTC</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Encaissé</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {salesData.invoices.map((inv: any) => (
+                  <tr key={inv.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">{new Date(inv.createdAt).toLocaleDateString('fr-FR')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">1</td>
+                    <td className="px-6 py-4 whitespace-nowrap">1</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{inv.subtotal.toLocaleString()} FCFA</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{inv.taxTotal.toLocaleString()} FCFA</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{inv.total.toLocaleString()} FCFA</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{inv.Payments?.reduce((sum: number, p: any) => sum + p.amount, 0).toLocaleString() || 0} FCFA</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
 
-  const renderProductsTab = () => (
-    <div className="space-y-6">
-      {productsData.length > 0 ? (
-        <div className="bg-white rounded shadow overflow-x-auto">
-          <table className="min-w-[600px] w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left">Nom</th>
-                <th className="px-4 py-2 text-left">Description</th>
-                <th className="px-4 py-2 text-right">Prix HT</th>
-                <th className="px-4 py-2 text-right">TVA</th>
-                <th className="px-4 py-2 text-right">Prix TTC</th>
-              </tr>
-            </thead>
-            <tbody>
-              {productsData.map((p, idx) => (
-                <tr key={idx} className="border-t">
-                  <td className="px-4 py-2">{p.name}</td>
-                  <td className="px-4 py-2">{p.description || '-'}</td>
-                  <td className="px-4 py-2 text-right">{p.price.toLocaleString()} FCFA</td>
-                  <td className="px-4 py-2 text-right">{p.taxRate}%</td>
-                  <td className="px-4 py-2 text-right">{Math.round(p.price * (1 + p.taxRate / 100)).toLocaleString()} FCFA</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-center py-10">Aucun produit trouvé</p>
-      )}
-    </div>
-  );
-
-  const renderClientsTab = () => (
-    <div className="bg-white rounded shadow overflow-x-auto">
-      <table className="min-w-[800px] w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-4 py-2 text-left">Client</th>
-            <th className="px-4 py-2 text-left">Code</th>
-            <th className="px-4 py-2 text-right">Factures</th>
-            <th className="px-4 py-2 text-right">Total achats</th>
-            <th className="px-4 py-2 text-right">Payé</th>
-            <th className="px-4 py-2 text-left">Dernier achat</th>
-          </tr>
-        </thead>
-        <tbody>
-          {clientsData.map((c) => (
-            <tr key={c.id} className="border-t">
-              <td className="px-4 py-2">{c.name}</td>
-              <td className="px-4 py-2">{c.code}</td>
-              <td className="px-4 py-2 text-right">{c.invoicesCount}</td>
-              <td className="px-4 py-2 text-right">{c.totalSpent.toLocaleString()} FCFA</td>
-              <td className="px-4 py-2 text-right">{c.totalPaid.toLocaleString()} FCFA</td>
-              <td className="px-4 py-2">{c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleString('fr-FR') : '-'}</td>
+  const renderProductsTab = () => {
+    if (productsData.length === 0) return <p className="text-center py-10">Aucun produit trouvé</p>;
+    return (
+      <div className="bg-white rounded shadow overflow-x-auto">
+        <table className="min-w-[600px] w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-left">Nom</th>
+              <th className="px-4 py-2 text-left">Description</th>
+              <th className="px-4 py-2 text-right">Prix HT</th>
+              <th className="px-4 py-2 text-right">TVA</th>
+              <th className="px-4 py-2 text-right">Prix TTC</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  const renderPaymentsTab = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Total encaissé</p><p className="text-2xl font-bold">{paymentsData?.total?.toLocaleString() || 0} FCFA</p></div>
-        <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Espèces</p><p className="text-2xl font-bold">{paymentsData?.byMethod?.cash?.total?.toLocaleString() || 0} FCFA</p></div>
-        <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Orange Money</p><p className="text-2xl font-bold">{paymentsData?.byMethod?.orange_money?.total?.toLocaleString() || 0} FCFA</p></div>
-        <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">MTN Money</p><p className="text-2xl font-bold">{paymentsData?.byMethod?.mtn_money?.total?.toLocaleString() || 0} FCFA</p></div>
-      </div>
-      {paymentsData && paymentsData.total > 0 && (
-        <div className="bg-white p-4 rounded shadow">
-          <Pie data={{ labels: ['Espèces', 'Orange Money', 'MTN Money'], datasets: [{ data: [paymentsData.byMethod.cash.total, paymentsData.byMethod.orange_money.total, paymentsData.byMethod.mtn_money.total], backgroundColor: ['#10b981', '#f59e0b', '#3b82f6'] }] }} options={{ responsive: true }} />
-        </div>
-      )}
-      {paymentsData?.payments && (
-        <div className="bg-white rounded shadow overflow-x-auto">
-          <table className="min-w-[800px] w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left">Date</th>
-                <th className="px-4 py-2 text-left">Mode</th>
-                <th className="px-4 py-2 text-right">Montant</th>
-                <th className="px-4 py-2 text-left">Facture</th>
+          </thead>
+          <tbody>
+            {productsData.map((p, idx) => (
+              <tr key={idx} className="border-t">
+                <td className="px-4 py-2">{p.name}</td>
+                <td className="px-4 py-2">{p.description || '-'}</td>
+                <td className="px-4 py-2 text-right">{p.price.toLocaleString()} FCFA</td>
+                <td className="px-4 py-2 text-right">{p.taxRate}%</td>
+                <td className="px-4 py-2 text-right">{Math.round(p.price * (1 + p.taxRate / 100)).toLocaleString()} FCFA</td>
               </tr>
-            </thead>
-            <tbody>
-              {paymentsData.payments.map((p: any) => (
-                <tr key={p.id} className="border-t">
-                  <td className="px-4 py-2">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td>
-                  <td className="px-4 py-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
-                  <td className="px-4 py-2 text-right">{p.amount.toLocaleString()} FCFA</td>
-                  <td className="px-4 py-2">{p.Invoice?.number || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderClientsTab = () => {
+    if (clientsData.length === 0) return <p className="text-center py-10">Aucun client trouvé</p>;
+    return (
+      <div className="bg-white rounded shadow overflow-x-auto">
+        <table className="min-w-[800px] w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-left">Client</th>
+              <th className="px-4 py-2 text-left">Code</th>
+              <th className="px-4 py-2 text-right">Factures</th>
+              <th className="px-4 py-2 text-right">Total achats</th>
+              <th className="px-4 py-2 text-right">Payé</th>
+              <th className="px-4 py-2 text-left">Dernier achat</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clientsData.map((c) => (
+              <tr key={c.id} className="border-t">
+                <td className="px-4 py-2">{c.name}</td>
+                <td className="px-4 py-2">{c.code}</td>
+                <td className="px-4 py-2 text-right">{c.invoicesCount}</td>
+                <td className="px-4 py-2 text-right">{c.totalSpent.toLocaleString()} FCFA</td>
+                <td className="px-4 py-2 text-right">{c.totalPaid.toLocaleString()} FCFA</td>
+                <td className="px-4 py-2">{c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleString('fr-FR') : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderPaymentsTab = () => {
+    if (!paymentsData) return <p className="text-center py-10">Aucune donnée de paiement</p>;
+    const totalMethods = paymentsData.byMethod?.cash?.total + paymentsData.byMethod?.orange_money?.total + paymentsData.byMethod?.mtn_money?.total || 0;
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Total encaissé</p><p className="text-2xl font-bold">{paymentsData.total?.toLocaleString() || 0} FCFA</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Espèces</p><p className="text-2xl font-bold">{paymentsData.byMethod?.cash?.total?.toLocaleString() || 0} FCFA</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Orange Money</p><p className="text-2xl font-bold">{paymentsData.byMethod?.orange_money?.total?.toLocaleString() || 0} FCFA</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">MTN Money</p><p className="text-2xl font-bold">{paymentsData.byMethod?.mtn_money?.total?.toLocaleString() || 0} FCFA</p></div>
         </div>
-      )}
-    </div>
-  );
+        {totalMethods > 0 && (
+          <div className="bg-white p-4 rounded shadow">
+            <Pie data={{ labels: ['Espèces', 'Orange Money', 'MTN Money'], datasets: [{ data: [paymentsData.byMethod.cash.total, paymentsData.byMethod.orange_money.total, paymentsData.byMethod.mtn_money.total], backgroundColor: ['#10b981', '#f59e0b', '#3b82f6'] }] }} options={{ responsive: true }} />
+          </div>
+        )}
+        {paymentsData.payments && paymentsData.payments.length > 0 && (
+          <div className="bg-white rounded shadow overflow-x-auto">
+            <table className="min-w-[800px] w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left">Date</th>
+                  <th className="px-4 py-2 text-left">Mode</th>
+                  <th className="px-4 py-2 text-right">Montant</th>
+                  <th className="px-4 py-2 text-left">Facture</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentsData.payments.map((p: any) => (
+                  <tr key={p.id} className="border-t">
+                    <td className="px-4 py-2">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td>
+                    <td className="px-4 py-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
+                    <td className="px-4 py-2 text-right">{p.amount.toLocaleString()} FCFA</td>
+                    <td className="px-4 py-2">{p.Invoice?.number || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="p-4 md:p-6">

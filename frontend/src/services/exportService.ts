@@ -2,27 +2,27 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import Papa from 'papaparse';
 
-export const exportToCSV = async (data: any[], filename: string) => {
+export const exportToCSV = async (data: any[], baseFilename: string) => {
   try {
     if (!data || data.length === 0) {
       throw new Error('Aucune donnée à exporter');
     }
     const csv = Papa.unparse(data);
-    const fileName = `${filename}.csv`;
-    // Écriture dans le cache (aucune permission nécessaire)
+    const timestamp = Date.now();
+    const fileName = `${baseFilename}_${timestamp}.csv`;
+    // Écriture dans le dossier privé de l'application
     await Filesystem.writeFile({
       path: fileName,
       data: csv,
-      directory: Directory.Cache,
+      directory: Directory.Data,
     });
-    // Récupération de l'URI absolue pour le partage
     const uri = await Filesystem.getUri({
       path: fileName,
-      directory: Directory.Cache,
+      directory: Directory.Data,
     });
     await Share.share({
       title: 'Export CSV',
-      text: `Fichier ${fileName}`,
+      text: `Fichier ${baseFilename}.csv`,
       url: uri.uri,
     });
     return true;
