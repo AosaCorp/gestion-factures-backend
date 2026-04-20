@@ -293,7 +293,7 @@ const Reports: React.FC = () => {
 
   // ========== Rendu des onglets ==========
   const renderSalesTab = () => {
-    if (!salesData) return <p>Aucune donnée</p>;
+    if (!salesData) return <p className="text-center py-10">Chargement...</p>;
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -315,30 +315,30 @@ const Reports: React.FC = () => {
             )}
           </div>
         )}
-        {salesData.invoices && (
+        {salesData.invoices && salesData.invoices.length > 0 && (
           <div className="bg-white rounded shadow overflow-x-auto">
             <table className="min-w-[800px] md:min-w-full w-full text-sm md:text-base">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factures</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Clients</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">HT</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TVA</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TTC</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Encaissé</th>
+                  <th className="px-4 py-2 text-left">Date</th>
+                  <th className="px-4 py-2 text-left">N° Facture</th>
+                  <th className="px-4 py-2 text-left">Client</th>
+                  <th className="px-4 py-2 text-right">HT</th>
+                  <th className="px-4 py-2 text-right">TVA</th>
+                  <th className="px-4 py-2 text-right">TTC</th>
+                  <th className="px-4 py-2 text-right">Encaissé</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {salesData.invoices.map((inv: any) => (
                   <tr key={inv.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{new Date(inv.createdAt).toLocaleDateString('fr-FR')}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">1</td>
-                    <td className="px-6 py-4 whitespace-nowrap">1</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{inv.subtotal.toLocaleString()} FCFA</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{inv.taxTotal.toLocaleString()} FCFA</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{inv.total.toLocaleString()} FCFA</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{inv.Payments?.reduce((sum: number, p: any) => sum + p.amount, 0).toLocaleString() || 0} FCFA</td>
+                    <td className="px-4 py-2">{new Date(inv.createdAt).toLocaleDateString('fr-FR')}</td>
+                    <td className="px-4 py-2">{inv.number}</td>
+                    <td className="px-4 py-2">{inv.client?.name || 'N/A'}</td>
+                    <td className="px-4 py-2 text-right">{inv.subtotal.toLocaleString()} FCFA</td>
+                    <td className="px-4 py-2 text-right">{inv.taxTotal.toLocaleString()} FCFA</td>
+                    <td className="px-4 py-2 text-right">{inv.total.toLocaleString()} FCFA</td>
+                    <td className="px-4 py-2 text-right">{inv.Payments?.reduce((sum: number, p: any) => sum + p.amount, 0).toLocaleString() || 0} FCFA</td>
                   </tr>
                 ))}
               </tbody>
@@ -365,7 +365,7 @@ const Reports: React.FC = () => {
           </thead>
           <tbody>
             {productsData.map((p, idx) => (
-              <tr key={idx} className="border-t">
+              <tr key={idx}>
                 <td className="px-4 py-2">{p.name}</td>
                 <td className="px-4 py-2">{p.description || '-'}</td>
                 <td className="px-4 py-2 text-right">{p.price.toLocaleString()} FCFA</td>
@@ -396,7 +396,7 @@ const Reports: React.FC = () => {
           </thead>
           <tbody>
             {clientsData.map((c) => (
-              <tr key={c.id} className="border-t">
+              <tr key={c.id}>
                 <td className="px-4 py-2">{c.name}</td>
                 <td className="px-4 py-2">{c.code}</td>
                 <td className="px-4 py-2 text-right">{c.invoicesCount}</td>
@@ -413,7 +413,7 @@ const Reports: React.FC = () => {
 
   const renderPaymentsTab = () => {
     if (!paymentsData) return <p className="text-center py-10">Aucune donnée de paiement</p>;
-    const totalMethods = paymentsData.byMethod?.cash?.total + paymentsData.byMethod?.orange_money?.total + paymentsData.byMethod?.mtn_money?.total || 0;
+    const totalMethods = (paymentsData.byMethod?.cash?.total || 0) + (paymentsData.byMethod?.orange_money?.total || 0) + (paymentsData.byMethod?.mtn_money?.total || 0);
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -440,7 +440,7 @@ const Reports: React.FC = () => {
               </thead>
               <tbody>
                 {paymentsData.payments.map((p: any) => (
-                  <tr key={p.id} className="border-t">
+                  <tr key={p.id}>
                     <td className="px-4 py-2">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td>
                     <td className="px-4 py-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
                     <td className="px-4 py-2 text-right">{p.amount.toLocaleString()} FCFA</td>
