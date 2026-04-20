@@ -10,15 +10,15 @@ export const exportToCSV = async (data: any[], baseFilename: string) => {
     const csv = Papa.unparse(data);
     const timestamp = Date.now();
     const fileName = `${baseFilename}_${timestamp}.csv`;
-    // Écriture dans le dossier privé de l'application
+    // Utilisation de Directory.Cache (dossier cache, pas besoin de permission)
     await Filesystem.writeFile({
       path: fileName,
       data: csv,
-      directory: Directory.Data,
+      directory: Directory.Cache,
     });
     const uri = await Filesystem.getUri({
       path: fileName,
-      directory: Directory.Data,
+      directory: Directory.Cache,
     });
     await Share.share({
       title: 'Export CSV',

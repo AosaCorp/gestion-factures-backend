@@ -118,7 +118,6 @@ const Reports: React.FC = () => {
     }
   };
 
-  // ========== Export CSV ==========
   const handleExportCSV = async () => {
     let data: any[] = [];
     let filename = 'rapport';
@@ -173,7 +172,6 @@ const Reports: React.FC = () => {
     }
   };
 
-  // ========== Export PDF ==========
   const handleExportPDF = async () => {
     if (!company) {
       toast.error('Informations entreprise non chargées');
@@ -276,9 +274,9 @@ const Reports: React.FC = () => {
         await Filesystem.writeFile({
           path: fileName,
           data: base64,
-          directory: Directory.Data,
+          directory: Directory.Cache,
         });
-        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Data });
+        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
         await Share.share({
           title: 'Export PDF',
           text: `Fichier rapport_${activeTab}.pdf`,
