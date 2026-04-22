@@ -42,7 +42,7 @@ exports.createInvoice = async (req, res) => {
 
       invoiceItems.push({
         productId: product.id,
-        description: product.name,
+        description: product.description || product.name, // ← Correction : utilise la description du produit
         quantity,
         unitPrice,
         taxRate,
