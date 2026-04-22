@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { FiDownload } from 'react-icons/fi';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { isCapacitor } from '../utils/platform';
 
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -66,36 +67,32 @@ const InvoiceDetail: React.FC = () => {
   };
 
   const handleDownloadPdf = async () => {
-  if (!invoice) return;
-  try {
-    const blob = await invoiceService.getPdf(invoice.id);
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = async () => {
-      const base64 = (reader.result as string).split(',')[1];
-      const fileName = `facture-${invoice.number}.pdf`;
-      await Filesystem.writeFile({
-        path: fileName,
-        data: base64,
-        directory: Directory.Cache,
-      });
-      const uri = await Filesystem.getUri({
-        path: fileName,
-        directory: Directory.Cache,
-      });
-      await Share.share({
-        title: 'Facture',
-        text: `Facture ${invoice.number}`,
-        url: uri.uri,
-      });
-      toast.success('PDF prêt à être partagé');
-    };
-    reader.onerror = () => toast.error('Erreur lecture PDF');
-  } catch (error) {
-    console.error('Erreur téléchargement PDF', error);
-    toast.error('Erreur lors du téléchargement');
-  }
-};
+    if (!invoice) return;
+    try {
+      const blob = await invoiceService.getPdf(invoice.id);
+      if (isCapacitor()) {
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = async () => {
+          const base64 = (reader.result as string).split(',')[1];
+          const fileName = `facture-${invoice.number}.pdf`;
+          await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
+          const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+          await Share.share({ title: 'Facture', text: `Facture ${invoice.number}`, url: uri.uri });
+          toast.success('PDF prêt à être partagé');
+        };
+        reader.onerror = () => toast.error('Erreur lecture PDF');
+      } else {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        URL.revokeObjectURL(url);
+        toast.success('PDF ouvert dans un nouvel onglet');
+      }
+    } catch (error) {
+      console.error('Erreur téléchargement PDF', error);
+      toast.error('Erreur lors du téléchargement');
+    }
+  };
 
   if (loading) return <div className="p-6">Chargement...</div>;
   if (!invoice) return <div className="p-6">Facture non trouvée</div>;

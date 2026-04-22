@@ -9,8 +9,8 @@ import api from '../services/api';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { exportToCSV } from '../services/exportService'; // ← import corrigé
+import { isCapacitor } from '../utils/platform';
 
-const isCapacitor = () => !!(window as any).Capacitor?.isNativePlatform();
 
 const Invoices: React.FC = () => {
   const { user } = useAuth();
@@ -97,28 +97,18 @@ const Invoices: React.FC = () => {
   try {
     const blob = await invoiceService.getPdf(id);
     if (isCapacitor()) {
-      // Mode mobile : sauvegarder et partager
       const reader = new FileReader();
       reader.readAsDataURL(blob);
       reader.onloadend = async () => {
         const base64 = (reader.result as string).split(',')[1];
         const fileName = `facture-${id}.pdf`;
-        await Filesystem.writeFile({
-          path: fileName,
-          data: base64,
-          directory: Directory.Cache,
-        });
+        await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
         const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-        await Share.share({
-          title: 'Facture',
-          text: `Facture ${id}`,
-          url: uri.uri,
-        });
+        await Share.share({ title: 'Facture', text: `Facture ${id}`, url: uri.uri });
         toast.success('PDF prêt à être partagé');
       };
       reader.onerror = () => toast.error('Erreur lecture PDF');
     } else {
-      // Mode web : afficher dans un nouvel onglet
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
       URL.revokeObjectURL(url);

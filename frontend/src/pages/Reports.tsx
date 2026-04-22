@@ -23,6 +23,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import api from '../services/api';
 import { exportToCSV } from '../services/exportService';
+import { isCapacitor } from '../utils/platform';
 
 ChartJS.register(
   CategoryScale,
@@ -184,7 +185,7 @@ const Reports: React.FC = () => {
     if (company.logo) {
       try {
         const base = api.defaults.baseURL?.replace('/api', '') || '';
-        const logoUrl = `${base}/uploads/${company.logo}`;
+        const logoUrl = `${base}/uploads/${company.logo.replace(/^uploads\//, '')}`;
         const logoImg = await fetch(logoUrl).then(res => res.blob());
         const reader = new FileReader();
         reader.readAsDataURL(logoImg);
@@ -265,33 +266,31 @@ const Reports: React.FC = () => {
     }
 
     const pdfData = doc.output('blob');
-    const reader = new FileReader();
-    reader.readAsDataURL(pdfData);
-    reader.onloadend = async () => {
-      const base64 = (reader.result as string).split(',')[1];
-      const fileName = `rapport_${activeTab}_${Date.now()}.pdf`;
-      try {
-        await Filesystem.writeFile({
-          path: fileName,
-          data: base64,
-          directory: Directory.Cache,
-        });
-        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-        await Share.share({
-          title: 'Export PDF',
-          text: `Fichier rapport_${activeTab}.pdf`,
-          url: uri.uri,
-        });
-        toast.success('Export PDF réussi');
-      } catch (error) {
-        console.error('Erreur sauvegarde PDF', error);
-        toast.error('Erreur lors de l\'export PDF');
-      }
-    };
-    reader.onerror = () => toast.error('Erreur génération PDF');
+    if (isCapacitor()) {
+      const reader = new FileReader();
+      reader.readAsDataURL(pdfData);
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        const fileName = `rapport_${activeTab}_${Date.now()}.pdf`;
+        try {
+          await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
+          const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+          await Share.share({ title: 'Export PDF', text: `Fichier rapport_${activeTab}.pdf`, url: uri.uri });
+          toast.success('Export PDF réussi');
+        } catch (error) {
+          console.error('Erreur sauvegarde PDF', error);
+          toast.error('Erreur lors de l\'export PDF');
+        }
+      };
+      reader.onerror = () => toast.error('Erreur génération PDF');
+    } else {
+      const url = URL.createObjectURL(pdfData);
+      window.open(url, '_blank');
+      URL.revokeObjectURL(url);
+      toast.success('PDF ouvert dans un nouvel onglet');
+    }
   };
 
-  // ========== Rendu des onglets ==========
   const renderSalesTab = () => {
     if (!salesData) return <p className="text-center py-10">Chargement...</p>;
     return (
@@ -365,7 +364,7 @@ const Reports: React.FC = () => {
           </thead>
           <tbody>
             {productsData.map((p, idx) => (
-              <tr key={idx}>
+              <tr key={idx} className="border-t">
                 <td className="px-4 py-2">{p.name}</td>
                 <td className="px-4 py-2">{p.description || '-'}</td>
                 <td className="px-4 py-2 text-right">{p.price.toLocaleString()} FCFA</td>
@@ -396,7 +395,7 @@ const Reports: React.FC = () => {
           </thead>
           <tbody>
             {clientsData.map((c) => (
-              <tr key={c.id}>
+              <tr key={c.id} className="border-t">
                 <td className="px-4 py-2">{c.name}</td>
                 <td className="px-4 py-2">{c.code}</td>
                 <td className="px-4 py-2 text-right">{c.invoicesCount}</td>
@@ -440,7 +439,7 @@ const Reports: React.FC = () => {
               </thead>
               <tbody>
                 {paymentsData.payments.map((p: any) => (
-                  <tr key={p.id}>
+                  <tr key={p.id} className="border-t">
                     <td className="px-4 py-2">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td>
                     <td className="px-4 py-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
                     <td className="px-4 py-2 text-right">{p.amount.toLocaleString()} FCFA</td>
