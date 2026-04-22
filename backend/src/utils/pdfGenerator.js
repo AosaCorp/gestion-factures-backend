@@ -2,9 +2,23 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
-// Fonction utilitaire pour formater les montants en FCFA
+// Formate un montant en FCFA (sans barre oblique, avec séparateur d'espace)
 const formatAmount = (amount) => {
   return amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' FCFA';
+};
+
+// Formate le numéro de facture : "FACT-260422-0001" → "FAC-2026-001"
+const formatInvoiceNumber = (number) => {
+  // Supposons le format "FACT-YYMMDD-XXXX"
+  const match = number.match(/FACT-(\d{2})(\d{2})(\d{2})-(\d+)/);
+  if (match) {
+    const year = '20' + match[1]; // 26 → 2026
+    const month = match[2];
+    const day = match[3];
+    const counter = match[4];
+    return `FAC-${year}-${counter.padStart(3, '0')}`;
+  }
+  return number; // fallback
 };
 
 const generateInvoicePDF = (invoice, client, items, payments, company) => {
@@ -17,13 +31,11 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       resolve(pdfData);
     });
 
-    // ========== EN-TÊTE ==========
     let currentY = 50;
 
-    // Logo (haut gauche)
+    // ========== LOGO (haut gauche) ==========
     if (company && company.logo) {
       try {
-        // company.logo contient le chemin relatif (ex: "uploads/logo-xxx.png")
         const logoPath = path.join(__dirname, '../../', company.logo);
         if (fs.existsSync(logoPath)) {
           doc.image(logoPath, 50, currentY, { width: 60 });
@@ -35,15 +47,14 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       }
     }
 
-    // Titre FACTURE (centré)
+    // ========== TITRE "FACTURE" (centré) ==========
     doc.font('Helvetica-Bold').fontSize(24).text('FACTURE', 0, currentY, { align: 'center' });
 
-    // Informations facture (haut droite)
+    // ========== INFORMATIONS FACTURE (haut droite) ==========
     const rightX = 450;
     doc.font('Helvetica').fontSize(10);
-    doc.text(`N° FACT: ${invoice.number}`, rightX, currentY, { align: 'right' });
-    doc.text(`Date: ${new Date(invoice.createdAt).toLocaleDateString('fr-FR')}`, rightX, currentY + 15, { align: 'right' });
-
+    doc.text(`N° FACTURE : ${formatInvoiceNumber(invoice.number)}`, rightX, currentY, { align: 'right' });
+    doc.text(`Date d'émission : ${new Date(invoice.createdAt).toLocaleDateString('fr-FR')}`, rightX, currentY + 15, { align: 'right' });
     currentY += 60;
 
     // ========== BLOC CLIENT ==========
@@ -54,17 +65,17 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
     if (client.email) doc.text(`Email: ${client.email}`, 50, currentY + 15);
     if (client.phone) doc.text(`Tél: ${client.phone}`, 50, currentY + 30);
     if (client.address) doc.text(`Adresse: ${client.address}`, 50, currentY + 45);
-    currentY += 70;
+    currentY += 80;
 
     // ========== TABLEAU DES ARTICLES ==========
     doc.font('Helvetica-Bold').fontSize(12).text('Détails', 50, currentY);
     currentY += 20;
 
-    // En-têtes du tableau
+    // En-têtes
     const colArticle = 50;
-    const colDesc = 150;
-    const colQty = 300;
-    const colPrice = 350;
+    const colDesc = 120;
+    const colQty = 280;
+    const colPrice = 330;
     const colTax = 400;
     const colTotal = 470;
 
@@ -76,8 +87,6 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
     doc.text('TVA%', colTax, currentY);
     doc.text('Total', colTotal, currentY);
     currentY += 15;
-
-    // Ligne de séparation
     doc.moveTo(50, currentY).lineTo(550, currentY).stroke();
     currentY += 10;
 
@@ -85,14 +94,14 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
     doc.font('Helvetica').fontSize(9);
     items.forEach(item => {
       doc.text(item.description || 'Produit', colArticle, currentY);
+      doc.text(item.description || '', colDesc, currentY);
       doc.text(item.quantity.toString(), colQty, currentY);
       doc.text(formatAmount(item.unitPrice), colPrice, currentY);
-      doc.text(item.taxRate + '%', colTax, currentY);
+      doc.text(item.taxRate.toFixed(2) + '%', colTax, currentY);
       doc.text(formatAmount(item.total), colTotal, currentY);
       currentY += 20;
     });
 
-    // Ligne de séparation
     doc.moveTo(50, currentY).lineTo(550, currentY).stroke();
     currentY += 15;
 
@@ -101,7 +110,7 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
     doc.font('Helvetica').fontSize(10);
     doc.text(`Sous-total: ${formatAmount(invoice.subtotal)}`, totalsX, currentY, { align: 'right' });
     currentY += 20;
-    doc.text(`TVA: ${formatAmount(invoice.taxTotal)}`, totalsX, currentY, { align: 'right' });
+    doc.text(`TVA (19.25%): ${formatAmount(invoice.taxTotal)}`, totalsX, currentY, { align: 'right' });
     currentY += 25;
     doc.font('Helvetica-Bold').fontSize(12);
     doc.text(`TOTAL: ${formatAmount(invoice.total)}`, totalsX, currentY, { align: 'right' });
@@ -139,7 +148,18 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
         doc.text(pmt.receiver ? pmt.receiver.name : '', colReceiver, currentY);
         currentY += 20;
       });
-      currentY += 10;
+
+      // Ligne du solde restant
+      const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+      const remaining = invoice.total - totalPaid;
+      if (remaining > 0) {
+        doc.font('Helvetica-Bold').fontSize(10);
+        doc.text(`Solde restant : ${formatAmount(remaining)}`, colAmount, currentY, { align: 'right' });
+      } else {
+        doc.font('Helvetica-Bold').fontSize(10);
+        doc.text(`Solde restant : 0 FCFA`, colAmount, currentY, { align: 'right' });
+      }
+      currentY += 30;
     }
 
     // ========== PIED DE PAGE ==========
