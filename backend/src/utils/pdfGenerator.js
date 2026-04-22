@@ -2,23 +2,26 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
-// Formate un montant en FCFA (sans barre oblique, avec séparateur d'espace)
+// Formate un montant en FCFA (sans barre oblique)
 const formatAmount = (amount) => {
-  return amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' FCFA';
+  // Convertir en nombre avec 2 décimales
+  const num = parseFloat(amount);
+  // Utiliser toLocaleString pour obtenir le séparateur de milliers (espace insécable)
+  let formatted = num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Remplacer l'espace insécable (\u202F) par un espace normal pour éviter l'affichage de "/"
+  formatted = formatted.replace(/\u202F/g, ' ');
+  return formatted + ' FCFA';
 };
 
 // Formate le numéro de facture : "FACT-260422-0001" → "FAC-2026-001"
 const formatInvoiceNumber = (number) => {
-  // Supposons le format "FACT-YYMMDD-XXXX"
   const match = number.match(/FACT-(\d{2})(\d{2})(\d{2})-(\d+)/);
   if (match) {
-    const year = '20' + match[1]; // 26 → 2026
-    const month = match[2];
-    const day = match[3];
+    const year = '20' + match[1];
     const counter = match[4];
     return `FAC-${year}-${counter.padStart(3, '0')}`;
   }
-  return number; // fallback
+  return number;
 };
 
 const generateInvoicePDF = (invoice, client, items, payments, company) => {
@@ -39,8 +42,6 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
         const logoPath = path.join(__dirname, '../../', company.logo);
         if (fs.existsSync(logoPath)) {
           doc.image(logoPath, 50, currentY, { width: 60 });
-        } else {
-          console.warn('Logo introuvable:', logoPath);
         }
       } catch (err) {
         console.error('Erreur chargement logo:', err);
@@ -149,16 +150,11 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
         currentY += 20;
       });
 
-      // Ligne du solde restant
+      // Solde restant
       const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
       const remaining = invoice.total - totalPaid;
-      if (remaining > 0) {
-        doc.font('Helvetica-Bold').fontSize(10);
-        doc.text(`Solde restant : ${formatAmount(remaining)}`, colAmount, currentY, { align: 'right' });
-      } else {
-        doc.font('Helvetica-Bold').fontSize(10);
-        doc.text(`Solde restant : 0 FCFA`, colAmount, currentY, { align: 'right' });
-      }
+      doc.font('Helvetica-Bold').fontSize(10);
+      doc.text(`Solde restant : ${remaining > 0 ? formatAmount(remaining) : '0 FCFA'}`, colAmount, currentY, { align: 'right' });
       currentY += 30;
     }
 
