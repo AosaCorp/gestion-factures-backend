@@ -10,6 +10,8 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { exportToCSV } from '../services/exportService'; // ← import corrigé
 
+const isCapacitor = () => !!(window as any).Capacitor?.isNativePlatform();
+
 const Invoices: React.FC = () => {
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -94,31 +96,39 @@ const Invoices: React.FC = () => {
   const handleDownloadPdf = async (id: number) => {
   try {
     const blob = await invoiceService.getPdf(id);
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = async () => {
-      const base64 = (reader.result as string).split(',')[1];
-      const fileName = `facture-${id}.pdf`;
-      await Filesystem.writeFile({
-        path: fileName,
-        data: base64,
-        directory: Directory.Cache,
-      });
-      const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-      await Share.share({
-        title: 'Facture',
-        text: `Facture ${id}`,
-        url: uri.uri,
-      });
-      toast.success('PDF prêt à être partagé');
-    };
-    reader.onerror = () => toast.error('Erreur lecture PDF');
+    if (isCapacitor()) {
+      // Mode mobile : sauvegarder et partager
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        const fileName = `facture-${id}.pdf`;
+        await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Cache,
+        });
+        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+        await Share.share({
+          title: 'Facture',
+          text: `Facture ${id}`,
+          url: uri.uri,
+        });
+        toast.success('PDF prêt à être partagé');
+      };
+      reader.onerror = () => toast.error('Erreur lecture PDF');
+    } else {
+      // Mode web : afficher dans un nouvel onglet
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      URL.revokeObjectURL(url);
+      toast.success('PDF ouvert dans un nouvel onglet');
+    }
   } catch (error) {
     console.error('Erreur téléchargement PDF', error);
     toast.error('Erreur lors du téléchargement');
   }
 };
-
   const handleExport = async () => {
   try {
     const allInvoices = await invoiceService.getAll();
