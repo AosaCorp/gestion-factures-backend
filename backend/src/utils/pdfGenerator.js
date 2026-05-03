@@ -35,10 +35,9 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       
       let currentY = 50;
       
-      // ========== LOGO ==========
+      // Logo
       if (company && company.logo) {
         try {
-          // Vérifier plusieurs chemins possibles sur Render
           const possiblePaths = [
             path.join(__dirname, '../../', company.logo),
             path.join(__dirname, '../uploads', path.basename(company.logo)),
@@ -56,15 +55,13 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
           
           if (logoPath && fs.existsSync(logoPath)) {
             doc.image(logoPath, 50, currentY, { width: 60 });
-          } else {
-            console.log('Logo non trouvé dans:', possiblePaths);
           }
         } catch (err) {
           console.error('Erreur chargement logo:', err.message);
         }
       }
       
-      // ========== EN-TÊTE ==========
+      // En-tête
       doc.font('Helvetica-Bold').fontSize(20);
       doc.text('FACTURE', 0, currentY, { align: 'center' });
       currentY += 30;
@@ -78,7 +75,7 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       doc.text(`Date d'émission : ${emissionDate.toLocaleDateString('fr-FR')}`, 0, currentY, { align: 'center' });
       currentY += 40;
       
-      // ========== CLIENT ==========
+      // Client
       doc.font('Helvetica-Bold').fontSize(12);
       doc.text('Client:', 50, currentY);
       currentY += 20;
@@ -93,7 +90,7 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       if (client.address) doc.text(`Adresse: ${client.address}`, 50, currentY);
       currentY += 40;
       
-      // ========== TABLEAU DÉTAILS ==========
+      // Tableau
       doc.font('Helvetica-Bold').fontSize(12);
       doc.text('Détails', 50, currentY);
       currentY += 25;
@@ -130,9 +127,8 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
         doc.text(articleName, colArticle, currentY);
         doc.text(description, colDesc, currentY);
         doc.text(quantity.toString(), colQty, currentY);
-        // CORRECTION : Prix unitaire SEUL (sans TVA collée)
+        // CORRECTION IMPORTANTE : Prix unitaire SEUL
         doc.text(formatAmount(unitPrice), colPrice, currentY);
-        // CORRECTION : TVA avec virgule
         doc.text(taxRate.toFixed(2).replace('.', ',') + ' %', colTax, currentY);
         doc.text(formatAmount(totalItem), colTotal, currentY);
         
@@ -147,7 +143,7 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       doc.moveTo(50, currentY).lineTo(550, currentY).stroke();
       currentY += 20;
       
-      // ========== TOTAUX ==========
+      // Totaux
       const subtotal = parseFloat(invoice.subtotal) || 0;
       const taxTotal = parseFloat(invoice.taxTotal) || 0;
       const total = parseFloat(invoice.total) || 0;
@@ -162,7 +158,7 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       doc.text(`TOTAL : ${formatAmount(total)}`, 400, currentY, { align: 'right', width: 150 });
       currentY += 40;
       
-      // ========== PAIEMENTS ==========
+      // Paiements
       if (payments && payments.length > 0) {
         doc.font('Helvetica-Bold').fontSize(12);
         doc.text('Paiements effectués', 50, currentY);
@@ -201,7 +197,7 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
         currentY += 30;
       }
       
-      // ========== PIED DE PAGE ==========
+      // Pied de page
       doc.font('Helvetica').fontSize(10);
       doc.text('Merci de votre confiance !', 0, 750, { align: 'center' });
       
