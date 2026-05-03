@@ -94,21 +94,33 @@ const InvoiceDetail: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="p-6">Chargement...</div>;
-  if (!invoice) return <div className="p-6">Facture non trouvée</div>;
+  // Formatage de la TVA avec virgule
+  const formatTaxRate = (rate: number) => {
+    return rate.toFixed(2).replace('.', ',') + ' %';
+  };
+
+  if (loading) return <div className="p-6 text-center">Chargement...</div>;
+  if (!invoice) return <div className="p-6 text-center text-red-600">Facture non trouvée</div>;
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = invoice.total - totalPaid;
 
   return (
-    <div className="px-4 py-6 max-w-4xl">
-      <div className="flex justify-between items-center mb-6">
+    <div className="px-4 py-6 max-w-5xl mx-auto">
+      {/* En-tête avec boutons */}
+      <div className="flex flex-wrap justify-between items-center mb-6 gap-2">
         <h1 className="text-2xl font-bold">Facture {invoice.number}</h1>
-        <div>
-          <button onClick={handleDownloadPdf} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mr-2 flex items-center">
-            <FiDownload className="mr-2" /> PDF
+        <div className="flex gap-2">
+          <button
+            onClick={handleDownloadPdf}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
+          >
+            <FiDownload /> PDF
           </button>
-          <button onClick={() => navigate(-1)} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+          <button
+            onClick={() => navigate(-1)}
+            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+          >
             Retour
           </button>
         </div>
@@ -116,54 +128,82 @@ const InvoiceDetail: React.FC = () => {
 
       {/* Informations client */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Informations client</h2>
-        {client && (
-          <div className="space-y-2">
+        <h2 className="text-lg font-semibold mb-4 border-b pb-2">Informations client</h2>
+        {client ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <p><span className="font-medium">Nom:</span> {client.name}</p>
             {client.email && <p><span className="font-medium">Email:</span> {client.email}</p>}
             {client.phone && <p><span className="font-medium">Tél:</span> {client.phone}</p>}
             {client.address && <p><span className="font-medium">Adresse:</span> {client.address}</p>}
           </div>
+        ) : (
+          <p>Client non trouvé</p>
         )}
       </div>
 
       {/* Articles */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Articles</h2>
+        <h2 className="text-lg font-semibold mb-4 border-b pb-2">Articles</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-full">
+          <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Description</th>
-                <th className="text-right py-2">Qté</th>
-                <th className="text-right py-2">Prix unitaire</th>
-                <th className="text-right py-2">TVA %</th>
-                <th className="text-right py-2">Total TTC</th>
+              <tr className="border-b bg-gray-50">
+                <th className="text-left py-3 px-2">Article</th>
+                <th className="text-left py-3 px-2">Description</th>
+                <th className="text-right py-3 px-2">Qté</th>
+                <th className="text-right py-3 px-2">Prix unitaire</th>
+                <th className="text-right py-3 px-2">TVA %</th>
+                <th className="text-right py-3 px-2">Total TTC</th>
               </tr>
             </thead>
             <tbody>
               {invoice.items.map((item, idx) => (
-                <tr key={idx} className="border-b">
-                  <td className="py-2">{item.description || 'Produit'}</td>
-                  <td className="text-right py-2">{item.quantity}</td>
-                  <td className="text-right py-2">{item.unitPrice?.toLocaleString()} F</td>
-                  <td className="text-right py-2">{item.taxRate}%</td>
-                  <td className="text-right py-2">{item.total?.toLocaleString()} F</td>
+                <tr key={idx} className="border-b hover:bg-gray-50">
+                  <td className="py-3 px-2 font-medium">
+                    {item.productName || 'Produit'}
+                  </td>
+                  <td className="py-3 px-2 text-gray-600">
+                    {item.productDescription || item.description || '-'}
+                  </td>
+                  <td className="text-right py-3 px-2">
+                    {item.quantity}
+                  </td>
+                  <td className="text-right py-3 px-2">
+                    {item.unitPrice?.toLocaleString()} FCFA
+                  </td>
+                  <td className="text-right py-3 px-2">
+                    {formatTaxRate(item.taxRate || 19.25)}
+                  </td>
+                  <td className="text-right py-3 px-2 font-medium">
+                    {item.total?.toLocaleString()} FCFA
+                  </td>
                 </tr>
               ))}
             </tbody>
-            <tfoot>
+            <tfoot className="border-t-2 border-gray-300 bg-gray-50">
               <tr>
-                <td colSpan={4} className="text-right font-medium py-2">Sous-total HT</td>
-                <td className="text-right py-2">{invoice.subtotal.toLocaleString()} F</td>
+                <td colSpan={5} className="text-right py-3 px-2 font-medium">
+                  Sous-total HT
+                </td>
+                <td className="text-right py-3 px-2">
+                  {invoice.subtotal.toLocaleString()} FCFA
+                </td>
               </tr>
               <tr>
-                <td colSpan={4} className="text-right font-medium py-2">TVA</td>
-                <td className="text-right py-2">{invoice.taxTotal.toLocaleString()} F</td>
+                <td colSpan={5} className="text-right py-3 px-2 font-medium">
+                  TVA
+                </td>
+                <td className="text-right py-3 px-2">
+                  {invoice.taxTotal.toLocaleString()} FCFA
+                </td>
               </tr>
-              <tr>
-                <td colSpan={4} className="text-right font-bold py-2">TOTAL TTC</td>
-                <td className="text-right font-bold py-2">{invoice.total.toLocaleString()} F</td>
+              <tr className="bg-blue-50">
+                <td colSpan={5} className="text-right py-3 px-2 font-bold text-lg">
+                  TOTAL TTC
+                </td>
+                <td className="text-right py-3 px-2 font-bold text-lg text-blue-600">
+                  {invoice.total.toLocaleString()} FCFA
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -172,43 +212,63 @@ const InvoiceDetail: React.FC = () => {
 
       {/* Paiements */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Paiements</h2>
+        <h2 className="text-lg font-semibold mb-4 border-b pb-2">Paiements</h2>
+        
         {payments.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full mb-4">
+          <div className="overflow-x-auto mb-4">
+            <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2">Date</th>
-                  <th className="text-right py-2">Montant</th>
-                  <th className="text-left py-2">Méthode</th>
-                  <th className="text-left py-2">Transaction</th>
-                  <th className="text-left py-2">Reçu par</th>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left py-2 px-2">Date</th>
+                  <th className="text-right py-2 px-2">Montant</th>
+                  <th className="text-left py-2 px-2">Méthode</th>
+                  <th className="text-left py-2 px-2">Transaction</th>
+                  <th className="text-left py-2 px-2">Reçu par</th>
                 </tr>
               </thead>
               <tbody>
                 {payments.map(p => (
-                  <tr key={p.id} className="border-b">
-                    <td className="py-2">{new Date(p.createdAt).toLocaleDateString()}</td>
-                    <td className="text-right py-2">{p.amount.toLocaleString()} F</td>
-                    <td className="py-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
-                    <td className="py-2">{p.transactionId || '-'}</td>
-                    <td className="py-2">{p.receiver?.name || '-'}</td>
+                  <tr key={p.id} className="border-b hover:bg-gray-50">
+                    <td className="py-2 px-2">
+                      {new Date(p.createdAt).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td className="text-right py-2 px-2">
+                      {p.amount.toLocaleString()} FCFA
+                    </td>
+                    <td className="py-2 px-2">
+                      {p.method === 'cash' ? 'Espèces' : 
+                       p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}
+                    </td>
+                    <td className="py-2 px-2">{p.transactionId || '-'}</td>
+                    <td className="py-2 px-2">{p.receiver?.name || '-'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="mb-4">Aucun paiement enregistré.</p>
+          <p className="mb-4 text-gray-500">Aucun paiement enregistré.</p>
         )}
 
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center border-t pt-4">
           <div>
-            <p><span className="font-medium">Total payé:</span> {totalPaid.toLocaleString()} F</p>
-            <p><span className="font-medium">Reste à payer:</span> {remaining.toLocaleString()} F</p>
+            <p className="text-sm">
+              <span className="font-medium">Total payé:</span>{' '}
+              <span className="text-green-600">{totalPaid.toLocaleString()} FCFA</span>
+            </p>
+            <p className="text-sm">
+              <span className="font-medium">Reste à payer:</span>{' '}
+              <span className={`${remaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {remaining.toLocaleString()} FCFA
+              </span>
+            </p>
           </div>
-          {invoice.status === 'draft' && remaining > 0 && (user?.role === 'cashier' || user?.role === 'admin') && (
-            <button onClick={() => setShowPaymentForm(!showPaymentForm)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          {invoice.status === 'draft' && remaining > 0 && 
+           (user?.role === 'cashier' || user?.role === 'admin') && (
+            <button
+              onClick={() => setShowPaymentForm(!showPaymentForm)}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
               {showPaymentForm ? 'Annuler' : 'Ajouter un paiement'}
             </button>
           )}
@@ -216,25 +276,33 @@ const InvoiceDetail: React.FC = () => {
 
         {showPaymentForm && (
           <form onSubmit={handlePayment} className="mt-4 border-t pt-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Montant *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Montant *
+                </label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="1"
                   required
                   max={remaining}
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(parseFloat(e.target.value))}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                  className="w-full border border-gray-300 rounded-md p-2"
                 />
+                <p className="text-xs text-gray-500 mt-1">Maximum: {remaining.toLocaleString()} FCFA</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Méthode *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Méthode *
+                </label>
                 <select
                   value={paymentMethod}
-                  onChange={(e) => { setPaymentMethod(e.target.value as any); setTransactionId(''); }}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                  onChange={(e) => {
+                    setPaymentMethod(e.target.value as any);
+                    setTransactionId('');
+                  }}
+                  className="w-full border border-gray-300 rounded-md p-2"
                 >
                   <option value="cash">Espèces</option>
                   <option value="orange_money">Orange Money</option>
@@ -242,22 +310,36 @@ const InvoiceDetail: React.FC = () => {
                 </select>
               </div>
               {(paymentMethod === 'orange_money' || paymentMethod === 'mtn_money') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Numéro de transaction *</label>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Numéro de transaction *
+                  </label>
                   <input
                     type="text"
                     required
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                    className="w-full border border-gray-300 rounded-md p-2"
                     placeholder="Ex: OM123456789"
                   />
                 </div>
               )}
             </div>
-            <button type="submit" className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-              Enregistrer le paiement
-            </button>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="submit"
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+              >
+                Enregistrer le paiement
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPaymentForm(false)}
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+              >
+                Annuler
+              </button>
+            </div>
           </form>
         )}
       </div>

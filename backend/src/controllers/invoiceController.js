@@ -1,6 +1,5 @@
-const { Invoice, Client, User, Payment, Product } = require('../models');
+const { Invoice, Client, Product, User, Payment } = require('../models');
 const sequelize = require('../config/database');
-const { Op } = require('sequelize');
 
 const generateInvoiceNumber = async () => {
   const date = new Date();
@@ -41,15 +40,16 @@ exports.createInvoice = async (req, res) => {
       taxTotal += itemTax;
 
       invoiceItems.push({
-        productId: product.id,
-        description: product.description || product.name, // ← Correction : utilise la description du produit
-        quantity,
-        unitPrice,
-        taxRate,
-        subtotal: itemSubtotal,
-        taxAmount: itemTax,
-        total: itemTotal
-      });
+  productId: product.id,
+  productName: product.name,                 // 'Casque Bluetooth'
+  productDescription: product.category || product.description || '', // 'Informatique'
+  quantity,
+  unitPrice,
+  taxRate,
+  subtotal: itemSubtotal,
+  taxAmount: itemTax,
+  total: itemTotal
+});
     }
 
     const total = subtotal + taxTotal;
@@ -79,6 +79,7 @@ exports.getInvoices = async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '', status = '', sort = 'createdAt', order = 'DESC' } = req.query;
     const offset = (page - 1) * limit;
+    const { Op } = require('sequelize');
 
     const whereInvoice = {};
     if (status) {

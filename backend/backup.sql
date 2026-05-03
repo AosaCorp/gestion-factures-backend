@@ -1,0 +1,17 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE `SequelizeMeta` (`name` VARCHAR(255) NOT NULL UNIQUE PRIMARY KEY);
+INSERT INTO SequelizeMeta VALUES('20260428033252-add-category-to-products.js');
+CREATE TABLE `Invoices` (`id` INTEGER PRIMARY KEY, `number` VARCHAR(255) NOT NULL UNIQUE, `items` JSON NOT NULL DEFAULT '[]', `subtotal` DECIMAL(10,2) NOT NULL, `taxTotal` DECIMAL(10,2) NOT NULL, `total` DECIMAL(10,2) NOT NULL, `status` TEXT DEFAULT 'draft', `paidAt` DATETIME, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, `clientId` INTEGER REFERENCES `Clients` (`id`), `createdBy` INTEGER REFERENCES `Users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE);
+CREATE TABLE `Payments` (`id` INTEGER PRIMARY KEY, `amount` DECIMAL(10,2) NOT NULL, `method` TEXT NOT NULL, `transactionId` VARCHAR(255), `phoneNumber` VARCHAR(255), `receivedBy` INTEGER NOT NULL REFERENCES `Users` (`id`), `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, `invoiceId` INTEGER REFERENCES `Invoices` (`id`) ON DELETE SET NULL ON UPDATE CASCADE);
+CREATE TABLE `Logs` (`id` INTEGER PRIMARY KEY, `action` VARCHAR(255) NOT NULL, `details` JSON, `ip` VARCHAR(255), `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, `userId` INTEGER REFERENCES `Users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE);
+CREATE TABLE `Companies` (`id` INTEGER PRIMARY KEY, `name` VARCHAR(255) DEFAULT '', `address` VARCHAR(255) DEFAULT '', `phone` VARCHAR(255) DEFAULT '', `email` VARCHAR(255) DEFAULT '', `taxId` VARCHAR(255) DEFAULT '', `taxRate` DECIMAL(5,2) DEFAULT '19.25', `logo` VARCHAR(255) DEFAULT '', `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL);
+CREATE TABLE `Products_backup` (`id` INTEGER PRIMARY KEY, `name` VARCHAR(255) NOT NULL, `description` VARCHAR(255), `price` DECIMAL(10,2) NOT NULL, `taxRate` DECIMAL(5,2) DEFAULT '19.25', `type` TEXT DEFAULT 'product', `stock` INTEGER DEFAULT '0', `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, `category` VARCHAR(255) DEFAULT 'Général');
+INSERT INTO Products_backup VALUES(1,'Casque Bluetooth','Casque sans fil Bluetooth',50000,19.25,'product',10,'2026-04-28 05:34:01','2026-04-28 05:34:01','Informatique');
+CREATE TABLE `Products` (`id` INTEGER PRIMARY KEY, `name` VARCHAR(255) NOT NULL, `description` VARCHAR(255), `price` DECIMAL(10,2) NOT NULL, `taxRate` DECIMAL(5,2) DEFAULT '19.25', `type` TEXT DEFAULT 'product', `stock` INTEGER DEFAULT '0', `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, `category` VARCHAR(255) DEFAULT 'Général');
+INSERT INTO Products VALUES(1,'Casque Bluetooth','Casque sans fil Bluetooth',50000,19.25,'product',10,'2026-04-28 05:34:01','2026-04-28 05:34:01','Informatique');
+CREATE TABLE `Users` (`id` INTEGER PRIMARY KEY, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL UNIQUE, `password` VARCHAR(255) NOT NULL, `role` TEXT DEFAULT 'cashier', `twoFactorSecret` VARCHAR(255), `twoFactorEnabled` TINYINT(1) DEFAULT 0, `lastLogin` DATETIME, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL);
+INSERT INTO Users VALUES(1,'Admin','admin@example.com','$2b$10$y3P.5GdWJqCGsFvKcWGKy.CIKN5LZas8njwlGB0Nd0z9zNrp9iwbS','admin',NULL,0,NULL,'2026-03-21 21:36:23.056 +00:00','2026-03-21 21:36:23.056 +00:00');
+CREATE TABLE `Clients` (`id` INTEGER PRIMARY KEY, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255), `phone` VARCHAR(255), `address` VARCHAR(255), `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL);
+DELETE FROM sqlite_sequence;
+COMMIT;

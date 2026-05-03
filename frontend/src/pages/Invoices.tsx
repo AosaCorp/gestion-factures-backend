@@ -8,9 +8,8 @@ import debounce from 'lodash/debounce';
 import api from '../services/api';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { exportToCSV } from '../services/exportService'; // ← import corrigé
+import { exportToCSV } from '../services/exportService';
 import { isCapacitor } from '../utils/platform';
-
 
 const Invoices: React.FC = () => {
   const { user } = useAuth();
@@ -77,7 +76,11 @@ const Invoices: React.FC = () => {
       cancelled: 'bg-red-100 text-red-800'
     };
     const labels = { draft: 'En attente', paid: 'Payée', cancelled: 'Annulée' };
-    return <span className={`px-2 py-1 text-xs rounded-full ${colors[status as keyof typeof colors]}`}>{labels[status as keyof typeof labels]}</span>;
+    return (
+      <span className={`px-2 py-1 text-xs rounded-full ${colors[status as keyof typeof colors]}`}>
+        {labels[status as keyof typeof labels]}
+      </span>
+    );
   };
 
   const handleCancel = async (id: number) => {
@@ -94,50 +97,51 @@ const Invoices: React.FC = () => {
   };
 
   const handleDownloadPdf = async (id: number) => {
-  try {
-    const blob = await invoiceService.getPdf(id);
-    if (isCapacitor()) {
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        const fileName = `facture-${id}.pdf`;
-        await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-        const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-        await Share.share({ title: 'Facture', text: `Facture ${id}`, url: uri.uri });
-        toast.success('PDF prêt à être partagé');
-      };
-      reader.onerror = () => toast.error('Erreur lecture PDF');
-    } else {
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      URL.revokeObjectURL(url);
-      toast.success('PDF ouvert dans un nouvel onglet');
+    try {
+      const blob = await invoiceService.getPdf(id);
+      if (isCapacitor()) {
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = async () => {
+          const base64 = (reader.result as string).split(',')[1];
+          const fileName = `facture-${id}.pdf`;
+          await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
+          const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+          await Share.share({ title: 'Facture', text: `Facture ${id}`, url: uri.uri });
+          toast.success('PDF prêt à être partagé');
+        };
+        reader.onerror = () => toast.error('Erreur lecture PDF');
+      } else {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        URL.revokeObjectURL(url);
+        toast.success('PDF ouvert dans un nouvel onglet');
+      }
+    } catch (error) {
+      console.error('Erreur téléchargement PDF', error);
+      toast.error('Erreur lors du téléchargement');
     }
-  } catch (error) {
-    console.error('Erreur téléchargement PDF', error);
-    toast.error('Erreur lors du téléchargement');
-  }
-};
+  };
+
   const handleExport = async () => {
-  try {
-    const allInvoices = await invoiceService.getAll();
-    const dataForExport = allInvoices.map(inv => ({
-      Numéro: inv.number,
-      Client: inv.client?.name || 'N/A',
-      Date: new Date(inv.createdAt).toLocaleDateString('fr-FR'),
-      Montant_HT: inv.subtotal,
-      TVA: inv.taxTotal,
-      Total_TTC: inv.total,
-      Payé: inv.Payments?.reduce((sum, p) => sum + p.amount, 0) || 0,
-      Statut: inv.status === 'draft' ? 'En attente' : inv.status === 'paid' ? 'Payée' : 'Annulée',
-    }));
-    await exportToCSV(dataForExport, 'factures');
-    toast.success('Export réussi');
-  } catch (error: any) {
-    toast.error(error.message || 'Erreur export');
-  }
-};
+    try {
+      const allInvoices = await invoiceService.getAll();
+      const dataForExport = allInvoices.map(inv => ({
+        Numéro: inv.number,
+        Client: inv.client?.name || 'N/A',
+        Date: new Date(inv.createdAt).toLocaleDateString('fr-FR'),
+        Montant_HT: inv.subtotal,
+        TVA: inv.taxTotal,
+        Total_TTC: inv.total,
+        Payé: inv.Payments?.reduce((sum, p) => sum + p.amount, 0) || 0,
+        Statut: inv.status === 'draft' ? 'En attente' : inv.status === 'paid' ? 'Payée' : 'Annulée',
+      }));
+      await exportToCSV(dataForExport, 'factures');
+      toast.success('Export réussi');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur export');
+    }
+  };
 
   const getPaidAmount = (invoice: Invoice) => {
     return invoice.Payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
@@ -192,11 +196,17 @@ const Invoices: React.FC = () => {
               <option value="cancelled">Annulée</option>
             </select>
           </div>
-          <button onClick={handleExport} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-1 text-sm">
+          <button
+            onClick={handleExport}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-1 text-sm"
+          >
             <FiDownload /> CSV
           </button>
           {(user?.role === 'cashier' || user?.role === 'admin') && (
-            <Link to="/invoices/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
+            <Link
+              to="/invoices/new"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
+            >
               Nouvelle facture
             </Link>
           )}
@@ -205,20 +215,20 @@ const Invoices: React.FC = () => {
 
       {/* Tableau */}
       {loading ? (
-        <p>Chargement...</p>
+        <p className="text-center py-10">Chargement...</p>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-x-auto">
             <table className="min-w-[900px] md:min-w-full w-full text-sm md:text-base">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left">N° Facture</th>
-                  <th className="px-4 py-2 text-left">Client</th>
-                  <th className="px-4 py-2 text-left">Date</th>
-                  <th className="px-4 py-2 text-right">Montant</th>
-                  <th className="px-4 py-2 text-right">Payé</th>
-                  <th className="px-4 py-2 text-left">Statut</th>
-                  <th className="px-4 py-2 text-left">Actions</th>
+                  <th className="px-4 py-3 text-left">N° Facture</th>
+                  <th className="px-4 py-3 text-left">Client</th>
+                  <th className="px-4 py-3 text-left">Date</th>
+                  <th className="px-4 py-3 text-right">Montant</th>
+                  <th className="px-4 py-3 text-right">Payé</th>
+                  <th className="px-4 py-3 text-left">Statut</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -226,24 +236,58 @@ const Invoices: React.FC = () => {
                   const paid = getPaidAmount(invoice);
                   return (
                     <tr key={invoice.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 whitespace-nowrap font-mono text-sm">{invoice.number}</td>
-                      <td className="px-4 py-2 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap font-mono text-sm">
+                        {invoice.number}
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="font-medium">{invoice.client?.name || 'N/A'}</div>
                         <div className="text-xs text-gray-500">CLI{invoice.client?.id || ''}</div>
                       </td>
-                      <td className="px-4 py-2 whitespace-nowrap">{new Date(invoice.createdAt).toLocaleDateString('fr-FR')}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-right">{invoice.total.toLocaleString()} F</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-right">{paid.toLocaleString()} F</td>
-                      <td className="px-4 py-2 whitespace-nowrap">{getStatusBadge(invoice.status)}</td>
-                      <td className="px-4 py-2 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {new Date(invoice.createdAt).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right font-medium">
+                        {invoice.total.toLocaleString()} FCFA
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        {paid.toLocaleString()} FCFA
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {getStatusBadge(invoice.status)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex gap-2">
-                          <Link to={`/invoices/${invoice.id}`} title="Voir" className="text-indigo-600"><FiEye className="w-5 h-5" /></Link>
-                          <button onClick={() => handleDownloadPdf(invoice.id)} title="PDF" className="text-purple-600"><FiDownload className="w-5 h-5" /></button>
+                          <Link
+                            to={`/invoices/${invoice.id}`}
+                            title="Voir"
+                            className="text-indigo-600 hover:text-indigo-800"
+                          >
+                            <FiEye className="w-5 h-5" />
+                          </Link>
+                          <button
+                            onClick={() => handleDownloadPdf(invoice.id)}
+                            title="PDF"
+                            className="text-purple-600 hover:text-purple-800"
+                          >
+                            <FiDownload className="w-5 h-5" />
+                          </button>
                           {invoice.status === 'draft' && (user?.role === 'cashier' || user?.role === 'admin') && (
-                            <Link to={`/invoices/edit/${invoice.id}`} title="Modifier" className="text-yellow-600"><FiEdit className="w-5 h-5" /></Link>
+                            <Link
+                              to={`/invoices/edit/${invoice.id}`}
+                              title="Modifier"
+                              className="text-yellow-600 hover:text-yellow-800"
+                            >
+                              <FiEdit className="w-5 h-5" />
+                            </Link>
                           )}
                           {invoice.status === 'draft' && user?.role === 'admin' && (
-                            <button onClick={() => handleCancel(invoice.id)} title="Annuler" className="text-red-600"><FiTrash2 className="w-5 h-5" /></button>
+                            <button
+                              onClick={() => handleCancel(invoice.id)}
+                              title="Annuler"
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <FiTrash2 className="w-5 h-5" />
+                            </button>
                           )}
                         </div>
                       </td>
@@ -253,11 +297,29 @@ const Invoices: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <div className="flex justify-center mt-4 gap-2 text-sm">
-            <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Précédent</button>
-            <span className="px-3 py-1">Page {page} / {totalPages}</span>
-            <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Suivant</button>
-          </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-4 gap-2 text-sm">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 hover:bg-gray-300"
+              >
+                Précédent
+              </button>
+              <span className="px-3 py-1">
+                Page {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 hover:bg-gray-300"
+              >
+                Suivant
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

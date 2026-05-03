@@ -33,7 +33,7 @@ async function createAdminIfNotExists() {
   }
 }
 
-sequelize.sync({ alter: true })
+sequelize.sync()
   .then(async () => {
     console.log('✅ Base de données synchronisée');
     await createAdminIfNotExists();

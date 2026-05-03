@@ -3,6 +3,8 @@ import { Client } from './clientService';
 
 export interface InvoiceItem {
   productId: number;
+  productName?: string;
+  productDescription?: string;
   quantity: number;
   description?: string;
   unitPrice?: number;
@@ -48,30 +50,38 @@ export interface PaginatedResponse<T> {
 
 export const invoiceService = {
   getPaginated: async (page = 1, limit = 10, search = '', status = ''): Promise<PaginatedResponse<Invoice>> => {
-    let url = `/invoices?page=${page}&limit=${limit}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
-    if (status) url += `&status=${encodeURIComponent(status)}`;
-    const response = await api.get(url);
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (search) params.append('search', encodeURIComponent(search));
+    if (status) params.append('status', status);
+    const response = await api.get(`/invoices?${params.toString()}`);
     return response.data;
   },
+
   getAll: async (): Promise<Invoice[]> => {
     const response = await api.get('/invoices/all');
     return response.data;
   },
+
   getById: async (id: number): Promise<Invoice> => {
     const response = await api.get(`/invoices/${id}`);
     return response.data;
   },
+
   create: async (data: { clientId: number; items: { productId: number; quantity: number }[] }): Promise<Invoice> => {
     const response = await api.post('/invoices', data);
     return response.data;
   },
+
   cancel: async (id: number): Promise<void> => {
     await api.delete(`/invoices/${id}`);
   },
+
   delete: async (id: number): Promise<void> => {
     await api.delete(`/invoices/${id}`);
   },
+
   getPdf: async (id: number): Promise<Blob> => {
     const response = await api.get(`/invoices/${id}/pdf`, { responseType: 'blob' });
     return response.data;
@@ -79,16 +89,17 @@ export const invoiceService = {
 };
 
 export const paymentService = {
-  create: async (data: { 
-    invoiceId: number; 
-    amount: number; 
-    method: string; 
+  create: async (data: {
+    invoiceId: number;
+    amount: number;
+    method: string;
     transactionId?: string;
     phoneNumber?: string;
   }): Promise<Payment> => {
     const response = await api.post('/payments', data);
     return response.data;
   },
+
   getByInvoice: async (invoiceId: number): Promise<Payment[]> => {
     const response = await api.get(`/payments/invoice/${invoiceId}`);
     return response.data;
