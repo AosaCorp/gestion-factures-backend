@@ -210,4 +210,4 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
   });
 };
 
-module.exports = { generateInvoicePDF };
+module.exports = { generateInvoicePDF };// Force deploy - TVA fix
