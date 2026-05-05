@@ -39,6 +39,17 @@ ChartJS.register(
 
 type ReportType = 'sales' | 'products' | 'clients' | 'payments';
 
+// Fonction de formatage correcte des montants
+const formatAmount = (amount: number): string => {
+  if (isNaN(amount)) return '0 FCFA';
+  return amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' FCFA';
+};
+
+const formatAmountWithDecimals = (amount: number): string => {
+  if (isNaN(amount)) return '0 FCFA';
+  return amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' FCFA';
+};
+
 const Reports: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ReportType>('sales');
   const [startDate, setStartDate] = useState('');
@@ -127,7 +138,7 @@ const Reports: React.FC = () => {
         Numéro: inv.number,
         Client: inv.client?.name || '',
         Date: new Date(inv.createdAt).toLocaleDateString('fr-FR'),
-        Total: inv.total,
+        Total: formatAmountWithDecimals(inv.total),
         Statut: inv.status === 'draft' ? 'En attente' : inv.status === 'paid' ? 'Payée' : 'Annulée',
       }));
       filename = 'ventes';
@@ -135,9 +146,9 @@ const Reports: React.FC = () => {
       data = productsData.map((p: any) => ({
         Nom: p.name,
         Description: p.description || '',
-        'Prix HT': p.price,
-        'TVA (%)': p.taxRate,
-        'Prix TTC': Math.round(p.price * (1 + p.taxRate / 100)),
+        'Prix HT': formatAmountWithDecimals(p.price),
+        'TVA (%)': p.taxRate.toString().replace('.', ',') + '%',
+        'Prix TTC': formatAmount(Math.round(p.price * (1 + p.taxRate / 100))),
       }));
       filename = 'produits';
     } else if (activeTab === 'clients' && clientsData.length) {
@@ -145,15 +156,15 @@ const Reports: React.FC = () => {
         Client: c.name,
         Code: c.code,
         Factures: c.invoicesCount,
-        'Total achats': c.totalSpent,
-        Payé: c.totalPaid,
+        'Total achats': formatAmountWithDecimals(c.totalSpent),
+        Payé: formatAmountWithDecimals(c.totalPaid),
         'Dernier achat': c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleDateString('fr-FR') : '',
       }));
       filename = 'clients';
     } else if (activeTab === 'payments' && paymentsData?.payments) {
       data = paymentsData.payments.map((p: any) => ({
         Date: new Date(p.createdAt).toLocaleDateString('fr-FR'),
-        Montant: p.amount,
+        Montant: formatAmountWithDecimals(p.amount),
         Méthode: p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money',
         Facture: p.Invoice?.number || '',
       }));
@@ -214,7 +225,7 @@ const Reports: React.FC = () => {
     y += 10;
 
     if (activeTab === 'sales' && salesData) {
-      doc.text(`Total des ventes: ${salesData.totalRevenue} FCFA`, 14, y);
+      doc.text(`Total des ventes: ${formatAmount(salesData.totalRevenue)}`, 14, y);
       y += 10;
       doc.text(`Payées: ${salesData.paidCount}`, 14, y);
       y += 10;
@@ -227,7 +238,7 @@ const Reports: React.FC = () => {
         inv.number,
         inv.client?.name || 'N/A',
         new Date(inv.createdAt).toLocaleDateString('fr-FR'),
-        inv.total + ' FCFA',
+        formatAmountWithDecimals(inv.total),
         inv.status === 'draft' ? 'Brouillon' : inv.status === 'paid' ? 'Payée' : 'Annulée'
       ]);
       autoTable(doc, { head: [tableColumn], body: tableRows, startY: y });
@@ -235,9 +246,9 @@ const Reports: React.FC = () => {
       const tableColumn = ["Produit", "Prix HT", "TVA", "Prix TTC"];
       const tableRows = productsData.map((p: any) => [
         p.name,
-        p.price + ' FCFA',
-        p.taxRate + '%',
-        Math.round(p.price * (1 + p.taxRate / 100)).toLocaleString() + ' FCFA'
+        formatAmountWithDecimals(p.price),
+        p.taxRate.toString().replace('.', ',') + '%',
+        formatAmount(Math.round(p.price * (1 + p.taxRate / 100)))
       ]);
       autoTable(doc, { head: [tableColumn], body: tableRows, startY: y });
     } else if (activeTab === 'clients' && clientsData.length > 0) {
@@ -246,8 +257,8 @@ const Reports: React.FC = () => {
         c.name,
         c.code,
         c.invoicesCount,
-        c.totalSpent + ' FCFA',
-        c.totalPaid + ' FCFA',
+        formatAmountWithDecimals(c.totalSpent),
+        formatAmountWithDecimals(c.totalPaid),
         c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleDateString('fr-FR') : ''
       ]);
       autoTable(doc, { head: [tableColumn], body: tableRows, startY: y });
@@ -255,7 +266,7 @@ const Reports: React.FC = () => {
       const tableColumn = ["Date", "Montant", "Méthode", "Facture"];
       const tableRows = paymentsData.payments.map((p: any) => [
         new Date(p.createdAt).toLocaleDateString('fr-FR'),
-        p.amount + ' FCFA',
+        formatAmountWithDecimals(p.amount),
         p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money',
         p.Invoice?.number || ''
       ]);
@@ -296,8 +307,8 @@ const Reports: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Chiffre d'affaires</p><p className="text-2xl font-bold">{salesData.totalRevenue?.toLocaleString() || 0} FCFA</p></div>
-          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Encaissé</p><p className="text-2xl font-bold">{salesData.totalPaid?.toLocaleString() || 0} FCFA</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Chiffre d'affaires</p><p className="text-2xl font-bold">{formatAmount(salesData.totalRevenue)}</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Encaissé</p><p className="text-2xl font-bold">{formatAmount(salesData.totalPaid)}</p></div>
           <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Factures</p><p className="text-2xl font-bold">{salesData.count || 0}</p></div>
           <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Clients</p><p className="text-2xl font-bold">{salesData.invoices ? new Set(salesData.invoices.map((i: any) => i.client?.id)).size : 0}</p></div>
         </div>
@@ -334,10 +345,10 @@ const Reports: React.FC = () => {
                     <td className="px-4 py-2">{new Date(inv.createdAt).toLocaleDateString('fr-FR')}</td>
                     <td className="px-4 py-2">{inv.number}</td>
                     <td className="px-4 py-2">{inv.client?.name || 'N/A'}</td>
-                    <td className="px-4 py-2 text-right">{inv.subtotal.toLocaleString()} FCFA</td>
-                    <td className="px-4 py-2 text-right">{inv.taxTotal.toLocaleString()} FCFA</td>
-                    <td className="px-4 py-2 text-right">{inv.total.toLocaleString()} FCFA</td>
-                    <td className="px-4 py-2 text-right">{inv.Payments?.reduce((sum: number, p: any) => sum + p.amount, 0).toLocaleString() || 0} FCFA</td>
+                    <td className="px-4 py-2 text-right">{formatAmountWithDecimals(inv.subtotal)}</td>
+                    <td className="px-4 py-2 text-right">{formatAmountWithDecimals(inv.taxTotal)}</td>
+                    <td className="px-4 py-2 text-right">{formatAmountWithDecimals(inv.total)}</td>
+                    <td className="px-4 py-2 text-right">{formatAmountWithDecimals(inv.Payments?.reduce((sum: number, p: any) => sum + p.amount, 0) || 0)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -363,15 +374,18 @@ const Reports: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {productsData.map((p, idx) => (
-              <tr key={idx} className="border-t">
-                <td className="px-4 py-2">{p.name}</td>
-                <td className="px-4 py-2">{p.description || '-'}</td>
-                <td className="px-4 py-2 text-right">{p.price.toLocaleString()} FCFA</td>
-                <td className="px-4 py-2 text-right">{p.taxRate}%</td>
-                <td className="px-4 py-2 text-right">{Math.round(p.price * (1 + p.taxRate / 100)).toLocaleString()} FCFA</td>
-              </tr>
-            ))}
+            {productsData.map((p, idx) => {
+              const priceTTC = Math.round(p.price * (1 + p.taxRate / 100));
+              return (
+                <tr key={idx} className="border-t">
+                  <td className="px-4 py-2">{p.name}</td>
+                  <td className="px-4 py-2">{p.description || '-'}</td>
+                  <td className="px-4 py-2 text-right">{formatAmountWithDecimals(p.price)}</td>
+                  <td className="px-4 py-2 text-right">{p.taxRate.toString().replace('.', ',')} %</td>
+                  <td className="px-4 py-2 text-right">{formatAmount(priceTTC)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -399,8 +413,8 @@ const Reports: React.FC = () => {
                 <td className="px-4 py-2">{c.name}</td>
                 <td className="px-4 py-2">{c.code}</td>
                 <td className="px-4 py-2 text-right">{c.invoicesCount}</td>
-                <td className="px-4 py-2 text-right">{c.totalSpent.toLocaleString()} FCFA</td>
-                <td className="px-4 py-2 text-right">{c.totalPaid.toLocaleString()} FCFA</td>
+                <td className="px-4 py-2 text-right">{formatAmountWithDecimals(c.totalSpent)}</td>
+                <td className="px-4 py-2 text-right">{formatAmountWithDecimals(c.totalPaid)}</td>
                 <td className="px-4 py-2">{c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleString('fr-FR') : '-'}</td>
               </tr>
             ))}
@@ -416,10 +430,10 @@ const Reports: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Total encaissé</p><p className="text-2xl font-bold">{paymentsData.total?.toLocaleString() || 0} FCFA</p></div>
-          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Espèces</p><p className="text-2xl font-bold">{paymentsData.byMethod?.cash?.total?.toLocaleString() || 0} FCFA</p></div>
-          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Orange Money</p><p className="text-2xl font-bold">{paymentsData.byMethod?.orange_money?.total?.toLocaleString() || 0} FCFA</p></div>
-          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">MTN Money</p><p className="text-2xl font-bold">{paymentsData.byMethod?.mtn_money?.total?.toLocaleString() || 0} FCFA</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Total encaissé</p><p className="text-2xl font-bold">{formatAmount(paymentsData.total)}</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Espèces</p><p className="text-2xl font-bold">{formatAmount(paymentsData.byMethod?.cash?.total)}</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">Orange Money</p><p className="text-2xl font-bold">{formatAmount(paymentsData.byMethod?.orange_money?.total)}</p></div>
+          <div className="bg-white p-4 rounded shadow"><p className="text-sm text-gray-500">MTN Money</p><p className="text-2xl font-bold">{formatAmount(paymentsData.byMethod?.mtn_money?.total)}</p></div>
         </div>
         {totalMethods > 0 && (
           <div className="bg-white p-4 rounded shadow">
@@ -442,9 +456,9 @@ const Reports: React.FC = () => {
                   <tr key={p.id} className="border-t">
                     <td className="px-4 py-2">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td>
                     <td className="px-4 py-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
-                    <td className="px-4 py-2 text-right">{p.amount.toLocaleString()} FCFA</td>
+                    <td className="px-4 py-2 text-right">{formatAmountWithDecimals(p.amount)}</td>
                     <td className="px-4 py-2">{p.Invoice?.number || '-'}</td>
-                  </tr>
+                  </td>
                 ))}
               </tbody>
             </table>
