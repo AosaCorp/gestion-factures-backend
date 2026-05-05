@@ -95,12 +95,13 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       doc.text('Détails', 50, currentY);
       currentY += 25;
       
+      // Positions des colonnes - AGRANDIES POUR ÉVITER LE COLLAGE
       const colArticle = 50;
       const colDesc = 150;
-      const colQty = 280;
+      const colQty = 270;
       const colPrice = 330;
-      const colTax = 400;
-      const colTotal = 470;
+      const colTax = 420;  // Augmenté de 400 à 420
+      const colTotal = 490; // Augmenté de 470 à 490
       
       doc.font('Helvetica-Bold').fontSize(10);
       doc.text('Article', colArticle, currentY);
@@ -127,7 +128,6 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
         doc.text(articleName, colArticle, currentY);
         doc.text(description, colDesc, currentY);
         doc.text(quantity.toString(), colQty, currentY);
-        // CORRECTION IMPORTANTE : Prix unitaire SEUL
         doc.text(formatAmount(unitPrice), colPrice, currentY);
         doc.text(taxRate.toFixed(2).replace('.', ',') + ' %', colTax, currentY);
         doc.text(formatAmount(totalItem), colTotal, currentY);
@@ -210,4 +210,4 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
   });
 };
 
-module.exports = { generateInvoicePDF };// Force deploy - TVA fix
+module.exports = { generateInvoicePDF };
