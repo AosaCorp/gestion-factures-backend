@@ -41,12 +41,12 @@ type ReportType = 'sales' | 'products' | 'clients' | 'payments';
 
 // Fonction de formatage correcte des montants
 const formatAmount = (amount: number): string => {
-  if (isNaN(amount)) return '0 FCFA';
+  if (isNaN(amount) || amount === undefined || amount === null) return '0 FCFA';
   return amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' FCFA';
 };
 
 const formatAmountWithDecimals = (amount: number): string => {
-  if (isNaN(amount)) return '0 FCFA';
+  if (isNaN(amount) || amount === undefined || amount === null) return '0 FCFA';
   return amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' FCFA';
 };
 
@@ -458,7 +458,7 @@ const Reports: React.FC = () => {
                     <td className="px-4 py-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
                     <td className="px-4 py-2 text-right">{formatAmountWithDecimals(p.amount)}</td>
                     <td className="px-4 py-2">{p.Invoice?.number || '-'}</td>
-                  </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
