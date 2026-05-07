@@ -39,15 +39,15 @@ ChartJS.register(
 
 type ReportType = 'sales' | 'products' | 'clients' | 'payments';
 
-// Fonction de formatage correcte des montants
+// Fonctions de formatage des montants (SANS slash)
 const formatAmount = (amount: number): string => {
   if (isNaN(amount) || amount === undefined || amount === null) return '0 FCFA';
-  return amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' FCFA';
+  return amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).replace(/\s/g, ' ') + ' FCFA';
 };
 
 const formatAmountWithDecimals = (amount: number): string => {
   if (isNaN(amount) || amount === undefined || amount === null) return '0 FCFA';
-  return amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' FCFA';
+  return amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\s/g, ' ') + ' FCFA';
 };
 
 const Reports: React.FC = () => {
@@ -133,6 +133,7 @@ const Reports: React.FC = () => {
   const handleExportCSV = async () => {
     let data: any[] = [];
     let filename = 'rapport';
+
     if (activeTab === 'sales' && salesData?.invoices) {
       data = salesData.invoices.map((inv: any) => ({
         Numéro: inv.number,
@@ -144,7 +145,7 @@ const Reports: React.FC = () => {
       filename = 'ventes';
     } else if (activeTab === 'products' && productsData.length) {
       data = productsData.map((p: any) => ({
-        Nom: p.name,
+        Produit: p.name,
         Description: p.description || '',
         'Prix HT': formatAmountWithDecimals(p.price),
         'TVA (%)': p.taxRate.toString().replace('.', ',') + '%',
@@ -193,11 +194,15 @@ const Reports: React.FC = () => {
     const doc = new jsPDF();
     let y = 20;
 
+    // Logo
     if (company.logo) {
       try {
-        const base = api.defaults.baseURL?.replace('/api', '') || '';
-        const logoUrl = `${base}/uploads/${company.logo.replace(/^uploads\//, '')}`;
-        const logoImg = await fetch(logoUrl).then(res => res.blob());
+        const baseURL = api.defaults.baseURL?.replace('/api', '') || '';
+        const logoFileName = company.logo.replace(/^.*[\\\/]/, '');
+        const logoUrl = `${baseURL}/uploads/${logoFileName}`;
+        
+        const response = await fetch(logoUrl);
+        const logoImg = await response.blob();
         const reader = new FileReader();
         reader.readAsDataURL(logoImg);
         await new Promise((resolve) => { reader.onload = resolve; });
@@ -366,7 +371,7 @@ const Reports: React.FC = () => {
         <table className="min-w-[600px] w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left">Nom</th>
+              <th className="px-4 py-2 text-left">Produit</th>
               <th className="px-4 py-2 text-left">Description</th>
               <th className="px-4 py-2 text-right">Prix HT</th>
               <th className="px-4 py-2 text-right">TVA</th>
