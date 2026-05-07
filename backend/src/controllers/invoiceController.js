@@ -191,3 +191,40 @@ exports.cancelInvoice = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
+
+
+
+// Envoi de la facture par email
+exports.sendInvoiceEmail = async (req, res) => {
+  try {
+    const { Invoice, Client, Payment, User, Company } = require('../models');
+    const { generateInvoicePDF } = require('../utils/pdfGenerator');
+    const { sendInvoiceEmail } = require('../services/emailService');
+    
+    const invoice = await Invoice.findByPk(req.params.id, {
+      include: [
+        { model: Client, as: 'client' },
+        { model: Payment, include: [{ model: User, as: 'receiver' }] }
+      ]
+    });
+    
+    if (!invoice) {
+      return res.status(404).json({ message: 'Facture non trouvée' });
+    }
+    
+    if (!invoice.client || !invoice.client.email) {
+      return res.status(400).json({ message: 'Le client n\'a pas d\'adresse email' });
+    }
+    
+    const company = await Company.findOne();
+    const items = invoice.items || [];
+    const pdfBuffer = await generateInvoicePDF(invoice, invoice.client, items, invoice.Payments, company);
+    
+    const result = await sendInvoiceEmail(invoice, invoice.client, pdfBuffer, company);
+    
+    res.json({ message: `Facture envoyée par email à ${invoice.client.email}`, messageId: result.messageId });
+  } catch (error) {
+    console.error('Erreur envoi email:', error);
+    res.status(500).json({ message: error.message || 'Erreur lors de l\'envoi' });
+  }
+};

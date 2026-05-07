@@ -81,6 +81,11 @@ export const invoiceService = {
   delete: async (id: number): Promise<void> => {
     await api.delete(`/invoices/${id}`);
   },
+  
+  sendEmail: async (id: number): Promise<{ message: string }> => {
+  const response = await api.post(`/invoices/${id}/send-email`);
+  return response.data;
+},
 
   getPdf: async (id: number): Promise<Blob> => {
     const response = await api.get(`/invoices/${id}/pdf`, { responseType: 'blob' });

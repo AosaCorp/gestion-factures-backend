@@ -4,7 +4,7 @@ import { invoiceService, paymentService, Invoice, Payment } from '../services/in
 import { clientService, Client } from '../services/clientService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiDownload } from 'react-icons/fi';
+import { FiDownload, FiMail } from 'react-icons/fi';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { isCapacitor } from '../utils/platform';
@@ -21,6 +21,7 @@ const InvoiceDetail: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'orange_money' | 'mtn_money'>('cash');
   const [transactionId, setTransactionId] = useState('');
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     if (id) fetchData();
@@ -94,6 +95,25 @@ const InvoiceDetail: React.FC = () => {
     }
   };
 
+  const handleSendEmail = async () => {
+    if (!invoice) return;
+    if (!client?.email) {
+      toast.error('Le client n\'a pas d\'adresse email');
+      return;
+    }
+    
+    setSendingEmail(true);
+    try {
+      await invoiceService.sendEmail(invoice.id);
+      toast.success(`Facture envoyée par email à ${client.email}`);
+    } catch (error: any) {
+      console.error('Erreur envoi email', error);
+      toast.error(error.response?.data?.message || 'Erreur lors de l\'envoi');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   // Formatage de la TVA avec virgule
   const formatTaxRate = (rate: number) => {
     return rate.toFixed(2).replace('.', ',') + ' %';
@@ -116,6 +136,18 @@ const InvoiceDetail: React.FC = () => {
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
           >
             <FiDownload /> PDF
+          </button>
+          <button
+            onClick={handleSendEmail}
+            disabled={sendingEmail || !client?.email}
+            className={`px-4 py-2 rounded flex items-center gap-2 ${
+              !client?.email 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700'
+            } text-white`}
+            title={!client?.email ? "Client sans adresse email" : "Envoyer par email"}
+          >
+            <FiMail /> {sendingEmail ? 'Envoi...' : 'Email'}
           </button>
           <button
             onClick={() => navigate(-1)}

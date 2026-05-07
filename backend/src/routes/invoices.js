@@ -2,14 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { protect, authorize } = require('../middleware/auth');
 const logger = require('../middleware/logger');
-const {
-  createInvoice,
-  getInvoices,
-  getAllInvoices,
-  getInvoiceById,
-  updateInvoice,
-  cancelInvoice
-} = require('../controllers/invoiceController');
+const invoiceController = require('../controllers/invoiceController');
 const { generateInvoicePDF } = require('../utils/pdfGenerator');
 const { Invoice, Client, Payment, User, Company } = require('../models');
 
@@ -17,16 +10,20 @@ const router = express.Router();
 
 router.use(protect);
 
+// Routes
 router.route('/')
-  .get(authorize('cashier', 'admin', 'manager'), getInvoices)
-  .post(authorize('cashier', 'admin'), logger('CREATE_INVOICE'), createInvoice);
+  .get(authorize('cashier', 'admin', 'manager'), invoiceController.getInvoices)
+  .post(authorize('cashier', 'admin'), logger('CREATE_INVOICE'), invoiceController.createInvoice);
 
-router.get('/all', authorize('cashier', 'admin', 'manager'), getAllInvoices);
+router.get('/all', authorize('cashier', 'admin', 'manager'), invoiceController.getAllInvoices);
 
 router.route('/:id')
-  .get(authorize('cashier', 'admin', 'manager'), getInvoiceById)
-  .put(authorize('cashier', 'admin'), logger('UPDATE_INVOICE'), updateInvoice)
-  .delete(authorize('admin'), logger('CANCEL_INVOICE'), cancelInvoice);
+  .get(authorize('cashier', 'admin', 'manager'), invoiceController.getInvoiceById)
+  .put(authorize('cashier', 'admin'), logger('UPDATE_INVOICE'), invoiceController.updateInvoice)
+  .delete(authorize('admin'), logger('CANCEL_INVOICE'), invoiceController.cancelInvoice);
+
+// Envoi de la facture par email (NOUVELLE ROUTE)
+router.post('/:id/send-email', authorize('cashier', 'admin'), logger('SEND_INVOICE_EMAIL'), invoiceController.sendInvoiceEmail);
 
 // Route PDF avec token dans l'URL (pour l'application mobile)
 router.get('/:id/pdf', async (req, res) => {
