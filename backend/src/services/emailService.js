@@ -1,61 +1,28 @@
 // backend/src/services/emailService.js
-const nodemailer = require('nodemailer');
-
-// Configuration du transporteur email
-const createTransporter = () => {
-  // Configuration pour Brevo (gratuit, 300 emails/mois)
-  if (process.env.EMAIL_SERVICE === 'brevo') {
-    console.log('📧 Configuration Brevo (SMTP)');
-    return nodemailer.createTransport({
-      host: 'smtp-relay.brevo.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.BREVO_API_KEY,
-        pass: process.env.BREVO_API_KEY
-      }
-    });
-  }
-  
-  // Configuration pour Gmail (UNIQUEMENT en local)
-  if (process.env.EMAIL_SERVICE === 'gmail' && process.env.NODE_ENV !== 'production') {
-    console.log('📧 Configuration Gmail (local uniquement)');
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      }
-    });
-  }
-  
-  // Mode simulation (développement)
-  console.log('⚠️ MODE SIMULATION : Les emails seront affichés dans la console.');
-  return {
-    sendMail: (mailOptions) => {
-      console.log('📧 EMAIL SIMULÉ');
-      console.log('   To:', mailOptions.to);
-      console.log('   Subject:', mailOptions.subject);
-      console.log('   Attachments:', mailOptions.attachments?.length || 0);
-      return Promise.resolve({ messageId: 'simulated-' + Date.now() });
-    }
-  };
-};
-
-const transporter = createTransporter();
+const https = require('https');
 
 // Formatage des montants
 const formatMontant = (montant) => {
-  if (isNaN(montant)) return '0 FCFA';
+  if (isNaN(montant) || montant === undefined || montant === null) return '0 FCFA';
   return montant.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' FCFA';
 };
 
 /**
- * Envoie une facture par email
+ * Envoie une facture par email via l'API REST Brevo
+ * (Contourne le blocage SMTP de Render)
  */
 const sendInvoiceEmail = async (invoice, client, pdfBuffer, company = null) => {
   const companyName = company?.name || 'Notre association';
   const fromEmail = process.env.BREVO_SENDER_EMAIL || process.env.COMPANY_EMAIL || 'noreply@association.com';
+  const apiKey = process.env.BREVO_API_KEY;
+  
+  if (!apiKey) {
+    console.error('❌ BREVO_API_KEY non configurée');
+    throw new Error('Configuration email manquante');
+  }
+  
+  // Convertir le PDF en base64
+  const pdfBase64 = pdfBuffer.toString('base64');
   
   const subject = `Facture ${invoice.number} - ${companyName}`;
   
@@ -107,28 +74,71 @@ const sendInvoiceEmail = async (invoice, client, pdfBuffer, company = null) => {
     </html>
   `;
   
-  const mailOptions = {
-    from: `"${companyName}" <${fromEmail}>`,
-    to: client.email,
+  // Construction de la requête API Brevo
+  const postData = JSON.stringify({
+    sender: {
+      name: companyName,
+      email: fromEmail
+    },
+    to: [{
+      email: client.email,
+      name: client.name
+    }],
     subject: subject,
-    html: html,
-    attachments: [
+    htmlContent: html,
+    attachment: [
       {
-        filename: `facture-${invoice.number}.pdf`,
-        content: pdfBuffer,
-        contentType: 'application/pdf'
+        name: `facture-${invoice.number}.pdf`,
+        content: pdfBase64
       }
     ]
+  });
+  
+  const options = {
+    hostname: 'api.brevo.com',
+    path: '/v3/smtp/email',
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    },
+    timeout: 30000
   };
   
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email envoyé à', client.email);
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    console.error('❌ Erreur envoi email:', error.message);
-    throw new Error(`Erreur d'envoi: ${error.message}`);
-  }
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let responseData = '';
+      
+      res.on('data', (chunk) => {
+        responseData += chunk;
+      });
+      
+      res.on('end', () => {
+        if (res.statusCode === 201 || res.statusCode === 200) {
+          console.log('✅ Email envoyé via Brevo API à', client.email);
+          resolve({ success: true, messageId: res.headers['x-message-id'] });
+        } else {
+          console.error('❌ Erreur Brevo API:', res.statusCode, responseData);
+          reject(new Error(`Brevo API error: ${res.statusCode}`));
+        }
+      });
+    });
+    
+    req.on('error', (error) => {
+      console.error('❌ Erreur envoi email:', error.message);
+      reject(new Error(`Erreur d'envoi: ${error.message}`));
+    });
+    
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Timeout de la requête'));
+    });
+    
+    req.write(postData);
+    req.end();
+  });
 };
 
 module.exports = { sendInvoiceEmail };
