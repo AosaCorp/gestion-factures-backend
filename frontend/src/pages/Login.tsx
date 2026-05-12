@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useOffline } from '../contexts/OfflineContext';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -8,11 +9,19 @@ const Login: React.FC = () => {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const { login, twoFactorPending, verifyTwoFactor } = useAuth();
+  const { isOffline } = useOffline();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Vérifier la connexion internet
+    if (!navigator.onLine) {
+      setError('Mode hors ligne. Vérifiez votre connexion internet.');
+      return;
+    }
+    
     console.log('Submitting login with', { email, password, twoFactorPending });
     try {
       if (twoFactorPending) {
@@ -35,6 +44,11 @@ const Login: React.FC = () => {
       <div className="bg-white p-8 rounded shadow-md w-96">
         <img src="/logo.png" alt="Logo" className="h-16 mx-auto mb-4" />
         <h2 className="text-2xl font-bold mb-6 text-center">Connexion</h2>
+        {isOffline && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+            ⚠️ Mode hors ligne - Vérifiez votre connexion
+          </div>
+        )}
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
@@ -78,9 +92,14 @@ const Login: React.FC = () => {
           )}
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+            disabled={isOffline}
+            className={`w-full py-2 rounded ${
+              isOffline 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700'
+            } text-white`}
           >
-            {twoFactorPending ? 'Vérifier' : 'Se connecter'}
+            {isOffline ? 'Hors ligne' : (twoFactorPending ? 'Vérifier' : 'Se connecter')}
           </button>
         </form>
       </div>

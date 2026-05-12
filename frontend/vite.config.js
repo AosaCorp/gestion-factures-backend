@@ -78,6 +78,11 @@ export default defineConfig({
                         }
                     },
                     {
+                        urlPattern: /\/api\/auth\/login/,
+                        handler: 'NetworkOnly',
+                        options: {}
+                    },
+                    {
                         urlPattern: /\.(?:png|jpg|jpeg|svg|gif)$/,
                         handler: 'CacheFirst',
                         options: {
