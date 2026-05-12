@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useOffline } from '../contexts/OfflineContext';
 import { 
   FiHome, FiUsers, FiPackage, FiFileText, FiLogOut, 
-  FiSettings, FiBarChart2, FiUser 
+  FiSettings, FiBarChart2, FiUser, FiRefreshCw 
 } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,11 +14,22 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
+  const { isOffline, pendingActionsCount, syncPendingActions, pendingSync } = useOffline();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleSync = async () => {
+    if (pendingActionsCount === 0) {
+      toast('Aucune donnée à synchroniser', { icon: '✅' });
+      return;
+    }
+    toast.loading(`Synchronisation de ${pendingActionsCount} élément(s)...`, { id: 'sync' });
+    await syncPendingActions();
+    toast.success('Synchronisation terminée', { id: 'sync' });
   };
 
   const isAdmin = user?.role === 'admin';
@@ -87,12 +100,47 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </ul>
           </nav>
 
-          {/* Déconnexion (icône seulement) */}
-          <button onClick={handleLogout} className="shrink-0 text-gray-700 hover:text-red-600 ml-2" title="Déconnexion">
-            <FiLogOut size={22} />
-          </button>
+          {/* Zone des actions : Synchronisation + Déconnexion */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Bouton de synchronisation (visible seulement quand il y a des actions en attente ou en ligne) */}
+            {!isOffline && pendingActionsCount > 0 && (
+              <button
+                onClick={handleSync}
+                disabled={pendingSync}
+                className="flex items-center gap-1 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50"
+                title={`${pendingActionsCount} action(s) en attente de synchronisation`}
+              >
+                <FiRefreshCw className={`${pendingSync ? 'animate-spin' : ''}`} size={16} />
+                <span className="hidden sm:inline">Sync ({pendingActionsCount})</span>
+              </button>
+            )}
+
+            {/* Indicateur hors ligne */}
+            {isOffline && (
+              <div className="flex items-center gap-1 bg-red-100 text-red-600 px-2 py-1 rounded-lg text-xs">
+                <FiRefreshCw className="opacity-50" size={12} />
+                <span className="hidden sm:inline">Hors ligne</span>
+              </div>
+            )}
+
+            {/* Déconnexion */}
+            <button 
+              onClick={handleLogout} 
+              className="text-gray-700 hover:text-red-600" 
+              title="Déconnexion"
+            >
+              <FiLogOut size={22} />
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* Bannière d'information hors ligne (optionnelle) */}
+      {isOffline && (
+        <div className="bg-yellow-100 border-b border-yellow-200 text-yellow-700 text-xs py-1 px-4 text-center">
+          📱 Mode hors ligne - Les modifications seront synchronisées automatiquement au retour de la connexion
+        </div>
+      )}
 
       {/* Contenu principal */}
       <main className="flex-1 p-4 md:p-6">

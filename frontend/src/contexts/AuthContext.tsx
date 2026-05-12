@@ -48,6 +48,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     loadUser();
   }, [token]);
+  
+  // Dans AuthContext.tsx, vérifie cette partie
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const user = localStorage.getItem('user');
+  if (token && user) {
+    setToken(token);
+    setUser(JSON.parse(user));
+  }
+  setLoading(false);
+}, []);
 
   const login = async (email: string, password: string) => {
     try {

@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { productService } from '../services/productService';
 import { useAuth } from '../contexts/AuthContext';
+import { useOffline } from '../contexts/OfflineContext';
+import { useDataCache } from '../contexts/DataCacheContext';
 import toast from 'react-hot-toast';
 
 const ProductForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isOffline, savePendingAction } = useOffline();
+  const { refreshCache } = useDataCache();
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,7 +57,6 @@ const ProductForm: React.FC = () => {
     setError('');
     setLoading(true);
 
-    // Validation
     if (!formData.name.trim()) {
       setError('Le nom du produit est requis');
       setLoading(false);
@@ -65,6 +68,20 @@ const ProductForm: React.FC = () => {
       return;
     }
 
+    // Mode hors ligne : sauvegarder l'action
+    if (isOffline || !navigator.onLine) {
+      const pendingAction = {
+        type: isEdit ? 'UPDATE_PRODUCT' : 'CREATE_PRODUCT',
+        id: isEdit ? parseInt(id!) : undefined,
+        data: formData,
+        timestamp: Date.now()
+      };
+      savePendingAction(pendingAction);
+      toast.success(isEdit ? 'Produit modifié (sera synchronisé)' : 'Produit créé (sera synchronisé)');
+      navigate('/products');
+      return;
+    }
+
     try {
       if (isEdit) {
         await productService.update(parseInt(id!), formData);
@@ -73,6 +90,7 @@ const ProductForm: React.FC = () => {
         await productService.create(formData);
         toast.success('Produit créé avec succès');
       }
+      await refreshCache();
       navigate('/products');
     } catch (err: any) {
       console.error('Erreur', err);
@@ -92,7 +110,6 @@ const ProductForm: React.FC = () => {
     }));
   };
 
-  // Vérifier les droits d'accès
   if (user?.role !== 'admin') {
     return (
       <div className="container mx-auto px-4 py-6">
@@ -104,11 +121,7 @@ const ProductForm: React.FC = () => {
   }
 
   if (loading && isEdit) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-gray-500">Chargement...</div>
-      </div>
-    );
+    return <div className="flex justify-center items-center h-64">Chargement...</div>;
   }
 
   return (
@@ -116,6 +129,12 @@ const ProductForm: React.FC = () => {
       <h1 className="text-2xl font-bold mb-6">
         {isEdit ? 'Modifier le produit' : 'Créer un produit'}
       </h1>
+
+      {isOffline && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+          📱 Mode hors ligne - Le produit sera sauvegardé et synchronisé automatiquement
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -125,7 +144,6 @@ const ProductForm: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6">
         <div className="space-y-4">
-          {/* Nom du produit */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nom du produit *
@@ -137,11 +155,10 @@ const ProductForm: React.FC = () => {
               value={formData.name}
               onChange={handleChange}
               placeholder="Ex: Casque Bluetooth"
-              className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-md p-2"
             />
           </div>
 
-          {/* Catégorie */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Catégorie
@@ -152,14 +169,13 @@ const ProductForm: React.FC = () => {
               value={formData.category}
               onChange={handleChange}
               placeholder="Ex: Informatique, Audio, Accessoires..."
-              className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-md p-2"
             />
             <p className="text-xs text-gray-500 mt-1">
               La catégorie apparaîtra dans la colonne "Description" de la facture
             </p>
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Description
@@ -170,11 +186,10 @@ const ProductForm: React.FC = () => {
               onChange={handleChange}
               rows={3}
               placeholder="Description détaillée du produit..."
-              className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-md p-2"
             />
           </div>
 
-          {/* Prix et TVA */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -188,7 +203,7 @@ const ProductForm: React.FC = () => {
                 step="100"
                 value={formData.price}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-md p-2"
               />
             </div>
             <div>
@@ -203,7 +218,7 @@ const ProductForm: React.FC = () => {
                 max="100"
                 value={formData.taxRate}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-md p-2"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Taux standard: 19,25%
@@ -211,7 +226,6 @@ const ProductForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Type et Stock */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -221,7 +235,7 @@ const ProductForm: React.FC = () => {
                 name="type"
                 value={formData.type}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-md p-2"
               >
                 <option value="product">Produit</option>
                 <option value="service">Service</option>
@@ -237,12 +251,11 @@ const ProductForm: React.FC = () => {
                 min="0"
                 value={formData.stock}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-md p-2"
               />
             </div>
           </div>
 
-          {/* Aperçu du prix TTC */}
           <div className="bg-gray-50 p-3 rounded-md">
             <p className="text-sm text-gray-600">
               <span className="font-medium">Prix TTC estimé :</span>{' '}
@@ -250,19 +263,18 @@ const ProductForm: React.FC = () => {
             </p>
           </div>
 
-          {/* Boutons */}
           <div className="flex gap-2 pt-4">
             <button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? 'Enregistrement...' : (isEdit ? 'Modifier' : 'Créer')}
             </button>
             <button
               type="button"
               onClick={() => navigate('/products')}
-              className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition-colors"
+              className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
             >
               Annuler
             </button>

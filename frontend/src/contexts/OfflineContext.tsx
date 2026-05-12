@@ -8,6 +8,7 @@ interface OfflineContextType {
   setPendingSync: (value: boolean) => void;
   savePendingAction: (action: any) => void;
   syncPendingActions: () => Promise<void>;
+  pendingActionsCount: number;
 }
 
 const OfflineContext = createContext<OfflineContextType | undefined>(undefined);
@@ -22,22 +23,17 @@ export const useOffline = () => {
 
 interface PendingAction {
   id: string;
-  url: string;
-  method: string;
-  data?: any;
+  type: string;
+  data: any;
   timestamp: number;
 }
 
-interface OfflineProviderProps {
-  children: ReactNode;
-}
-
-export const OfflineProvider: React.FC<OfflineProviderProps> = ({ children }) => {
+export const OfflineProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingSync, setPendingSync] = useState(false);
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
 
-  // Charger les actions en attente au démarrage
+  // Charger les actions en attente
   useEffect(() => {
     const saved = localStorage.getItem('pendingActions');
     if (saved) {
@@ -51,7 +47,7 @@ export const OfflineProvider: React.FC<OfflineProviderProps> = ({ children }) =>
     }
   }, []);
 
-  // Sauvegarder les actions dans localStorage
+  // Sauvegarder les actions
   useEffect(() => {
     if (pendingActions.length > 0) {
       localStorage.setItem('pendingActions', JSON.stringify(pendingActions));
@@ -65,13 +61,13 @@ export const OfflineProvider: React.FC<OfflineProviderProps> = ({ children }) =>
   useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
-      toast.success('Connexion rétablie');
+      toast.success('Connexion rétablie', { icon: '🌐' });
       await syncPendingActions();
     };
     
     const handleOffline = () => {
       setIsOnline(false);
-      toast.error('Mode hors ligne actif. Les modifications seront sauvegardées.');
+      toast.error('Mode hors ligne', { icon: '📱' });
     };
     
     window.addEventListener('online', handleOnline);
@@ -85,12 +81,12 @@ export const OfflineProvider: React.FC<OfflineProviderProps> = ({ children }) =>
   
   const savePendingAction = (action: any) => {
     const newAction: PendingAction = {
-      ...action,
       id: Date.now().toString(),
+      ...action,
       timestamp: Date.now()
     };
     setPendingActions(prev => [...prev, newAction]);
-    toast('Action sauvegardée pour synchronisation ultérieure', { icon: '📱' });
+    toast.success('Action sauvegardée - sera synchronisée plus tard', { icon: '💾' });
   };
   
   const syncPendingActions = async () => {
@@ -99,30 +95,40 @@ export const OfflineProvider: React.FC<OfflineProviderProps> = ({ children }) =>
     setPendingSync(true);
     const token = localStorage.getItem('token');
     const actionsToSync = [...pendingActions];
-    const successIds: string[] = [];
+    let successCount = 0;
     
     for (const action of actionsToSync) {
       try {
-        const response = await fetch(action.url, {
-          method: action.method,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: action.data ? JSON.stringify(action.data) : undefined
-        });
-        
-        if (response.ok) {
-          successIds.push(action.id);
+        // Traiter selon le type d'action
+        if (action.type === 'CREATE_CLIENT') {
+          await fetch('http://localhost:5001/api/clients', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify(action.data)
+          });
+          successCount++;
+        } else if (action.type === 'UPDATE_CLIENT') {
+          await fetch(`http://localhost:5001/api/clients/${action.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify(action.data)
+          });
+          successCount++;
         }
       } catch (error) {
         console.error('Erreur synchronisation:', error);
       }
     }
     
-    if (successIds.length > 0) {
-      setPendingActions(prev => prev.filter(a => !successIds.includes(a.id)));
-      toast.success(`${successIds.length} action(s) synchronisée(s)`);
+    if (successCount > 0) {
+      setPendingActions(prev => prev.filter(a => !actionsToSync.includes(a)));
+      toast.success(`${successCount} action(s) synchronisée(s)`);
     }
     
     setPendingSync(false);
@@ -137,6 +143,7 @@ export const OfflineProvider: React.FC<OfflineProviderProps> = ({ children }) =>
         setPendingSync,
         savePendingAction,
         syncPendingActions,
+        pendingActionsCount: pendingActions.length
       }}
     >
       {children}

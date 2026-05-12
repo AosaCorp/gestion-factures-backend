@@ -1,9 +1,11 @@
 import React from 'react';
 import { useOffline } from '../contexts/OfflineContext';
-import { FiWifiOff, FiWifi, FiRefreshCw } from 'react-icons/fi';
+import { useDataCache } from '../contexts/DataCacheContext';
+import { FiWifiOff, FiWifi, FiRefreshCw, FiDatabase } from 'react-icons/fi';
 
 const OfflineBanner: React.FC = () => {
-  const { isOnline, pendingSync, setPendingSync } = useOffline();
+  const { isOnline, pendingSync, setPendingSync, syncPendingActions } = useOffline();
+  const { hasCache, refreshCache } = useDataCache();
   
   if (isOnline && !pendingSync) return null;
   
@@ -23,19 +25,40 @@ const OfflineBanner: React.FC = () => {
                 ? pendingSync 
                   ? 'Synchronisation en cours...' 
                   : 'Vous êtes de nouveau connecté'
-                : 'Les données sont en cache. Les modifications seront synchronisées plus tard.'
+                : hasCache 
+                  ? 'Affichage des données en cache'
+                  : 'Aucune donnée en cache. Connectez-vous en ligne d\'abord.'
               }
             </p>
           </div>
         </div>
-        {isOnline && pendingSync && (
-          <button 
-            onClick={() => setPendingSync(false)}
-            className="bg-white text-green-600 p-2 rounded-full hover:bg-gray-100"
-          >
-            <FiRefreshCw className="animate-spin" />
-          </button>
-        )}
+        <div className="flex gap-2">
+          {!isOnline && !hasCache && (
+            <button 
+              onClick={() => window.location.href = '/login'}
+              className="bg-white text-red-600 px-3 py-1 rounded text-sm hover:bg-gray-100"
+            >
+              Connexion
+            </button>
+          )}
+          {isOnline && pendingSync && (
+            <button 
+              onClick={() => syncPendingActions()}
+              className="bg-white text-green-600 p-2 rounded-full hover:bg-gray-100"
+            >
+              <FiRefreshCw className="animate-spin" />
+            </button>
+          )}
+          {isOnline && !pendingSync && hasCache && (
+            <button 
+              onClick={() => refreshCache()}
+              className="bg-white text-green-600 p-2 rounded-full hover:bg-gray-100"
+              title="Rafraîchir le cache"
+            >
+              <FiDatabase />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
