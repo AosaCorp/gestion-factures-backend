@@ -11,6 +11,14 @@ const formatAmount = (amount) => {
   return formatted + ' FCFA';
 };
 
+const formatAmountShort = (amount) => {
+  const num = parseFloat(amount);
+  if (isNaN(num)) return '0 FCFA';
+  let formatted = num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  formatted = formatted.replace(/\u202F/g, ' ');
+  return formatted;
+};
+
 const formatInvoiceNumber = (number) => {
   if (!number) return 'FAC-0000-0000';
   const match = number.match(/FACT-(\d{2})(\d{2})(\d{2})-(\d+)/);
@@ -113,12 +121,13 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
       doc.text('Détails', 50, currentY);
       currentY += 25;
       
+      // Positions des colonnes ajustées
       const colArticle = 50;
-      const colDesc = 150;
-      const colQty = 270;
-      const colPrice = 330;
-      const colTax = 420;
-      const colTotal = 490;
+      const colDesc = 130;
+      const colQty = 250;
+      const colPrice = 310;
+      const colTax = 400;
+      const colTotal = 470;
       
       doc.font('Helvetica-Bold').fontSize(10);
       doc.text('Article', colArticle, currentY);
@@ -145,9 +154,9 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
         doc.text(articleName, colArticle, currentY);
         doc.text(description, colDesc, currentY);
         doc.text(quantity.toString(), colQty, currentY);
-        doc.text(formatAmount(unitPrice), colPrice, currentY);
-        doc.text(taxRate.toFixed(2).replace('.', ',') + ' %', colTax, currentY);
-        doc.text(formatAmount(totalItem), colTotal, currentY);
+        doc.text(formatAmountShort(unitPrice), colPrice, currentY);
+        doc.text(taxRate.toFixed(2).replace('.', ',') + '%', colTax, currentY);
+        doc.text(formatAmountShort(totalItem), colTotal, currentY);
         
         currentY += 20;
         
@@ -175,12 +184,14 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
       doc.text(`TOTAL : ${formatAmount(total)}`, 400, currentY, { align: 'right', width: 150 });
       currentY += 30;
       
-      // Information QR Code (corrigé)
+      // Information QR Code
       if (qrCodeBuffer) {
         doc.font('Helvetica-Oblique').fontSize(8);
-        doc.text('Scannez ce QR code pour accéder', 460, currentY, { width: 100, align: 'center' });
+        doc.text('Scannez ce QR code', 460, currentY, { width: 100, align: 'center' });
         currentY += 10;
-        doc.text('à la facture en ligne', 460, currentY, { width: 100, align: 'center' });
+        doc.text('pour accéder à la', 460, currentY, { width: 100, align: 'center' });
+        currentY += 10;
+        doc.text('facture en ligne', 460, currentY, { width: 100, align: 'center' });
         currentY += 20;
       }
       
@@ -208,7 +219,7 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
         doc.font('Helvetica').fontSize(9);
         for (const pmt of payments) {
           doc.text(new Date(pmt.createdAt).toLocaleDateString('fr-FR'), colDate, currentY);
-          doc.text(formatAmount(pmt.amount), colAmount, currentY);
+          doc.text(formatAmountShort(pmt.amount), colAmount, currentY);
           
           let methodLabel = '';
           if (pmt.method === 'cash') methodLabel = 'Espèces';
