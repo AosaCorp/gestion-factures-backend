@@ -8,6 +8,43 @@ const { Invoice, Client, Payment, User, Company } = require('../models');
 
 const router = express.Router();
 
+// ========== ROUTE PUBLIQUE (sans authentification) - pour QR Code ==========
+router.get('/public/:id', async (req, res) => {
+  try {
+    const invoice = await Invoice.findByPk(req.params.id, {
+      include: [
+        { model: Client, as: 'client', attributes: ['id', 'name', 'email', 'phone', 'address'] },
+        { model: Payment, include: [{ model: User, as: 'receiver', attributes: ['id', 'name'] }] }
+      ]
+    });
+    
+    if (!invoice) {
+      return res.status(404).json({ message: 'Facture non trouvée' });
+    }
+    
+    // Ne pas envoyer les informations sensibles (seulement ce qui est nécessaire)
+    res.json({
+      id: invoice.id,
+      number: invoice.number,
+      createdAt: invoice.createdAt,
+      subtotal: invoice.subtotal,
+      taxTotal: invoice.taxTotal,
+      total: invoice.total,
+      status: invoice.status,
+      client: invoice.client ? {
+        name: invoice.client.name,
+        address: invoice.client.address
+      } : null,
+      items: invoice.items || [],
+      payments: invoice.Payments || []
+    });
+  } catch (error) {
+    console.error('Erreur consultation publique:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+// =========================================================================
+
 router.use(protect);
 
 // Routes
@@ -22,7 +59,7 @@ router.route('/:id')
   .put(authorize('cashier', 'admin'), logger('UPDATE_INVOICE'), invoiceController.updateInvoice)
   .delete(authorize('admin'), logger('CANCEL_INVOICE'), invoiceController.cancelInvoice);
 
-// Envoi de la facture par email (NOUVELLE ROUTE)
+// Envoi de la facture par email
 router.post('/:id/send-email', authorize('cashier', 'admin'), logger('SEND_INVOICE_EMAIL'), invoiceController.sendInvoiceEmail);
 
 // Route PDF avec token dans l'URL (pour l'application mobile)

@@ -4,10 +4,11 @@ import { invoiceService, paymentService, Invoice, Payment } from '../services/in
 import { clientService, Client } from '../services/clientService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiDownload, FiMail } from 'react-icons/fi';
+import { FiDownload, FiMail, FiGrid } from 'react-icons/fi';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { isCapacitor } from '../utils/platform';
+import QRCode from 'qrcode';
 
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,8 @@ const InvoiceDetail: React.FC = () => {
   const [transactionId, setTransactionId] = useState('');
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
 
   useEffect(() => {
     if (id) fetchData();
@@ -114,7 +117,69 @@ const InvoiceDetail: React.FC = () => {
     }
   };
 
-  // Formatage de la TVA avec virgule
+  const handleShowQRCode = async () => {
+    if (!invoice) return;
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      const invoiceUrl = `${apiUrl}/api/invoices/public/${invoice.id}`;
+      
+      const qrDataUrl = await QRCode.toDataURL(invoiceUrl, {
+        errorCorrectionLevel: 'H',
+        margin: 1,
+        width: 250,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      setQrCodeUrl(qrDataUrl);
+      setShowQRCode(true);
+      
+      if (!isCapacitor()) {
+        const qrWindow = window.open();
+        qrWindow?.document.write(`
+          <html>
+            <head>
+              <title>QR Code - Facture ${invoice.number}</title>
+              <style>
+                body { display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: Arial, sans-serif; background: #f5f5f5; }
+                .container { text-align: center; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                img { max-width: 100%; height: auto; margin: 20px 0; }
+                .info { margin-top: 20px; color: #666; }
+                .url { word-break: break-all; font-size: 12px; color: #999; margin-top: 10px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h2>Facture ${invoice.number}</h2>
+                <p>Scannez ce QR code pour accéder à la facture en ligne</p>
+                <img src="${qrDataUrl}" alt="QR Code">
+                <div class="info">
+                  <p>Client: ${client?.name || 'N/A'}</p>
+                  <p>Montant: ${invoice.total.toLocaleString()} FCFA</p>
+                </div>
+                <div class="url">
+                  <a href="${invoiceUrl}" target="_blank">${invoiceUrl}</a>
+                </div>
+              </div>
+            </body>
+          </html>
+        `);
+        qrWindow?.document.close();
+      }
+    } catch (error) {
+      console.error('Erreur QR Code', error);
+      toast.error('Erreur lors de la génération du QR Code');
+    }
+  };
+
+  const closeQRCodeModal = () => {
+    setShowQRCode(false);
+    setQrCodeUrl('');
+  };
+
   const formatTaxRate = (rate: number) => {
     return rate.toFixed(2).replace('.', ',') + ' %';
   };
@@ -127,38 +192,40 @@ const InvoiceDetail: React.FC = () => {
 
   return (
     <div className="px-4 py-6 max-w-5xl mx-auto">
-      {/* En-tête avec boutons */}
+      {showQRCode && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">QR Code - Facture {invoice.number}</h3>
+              <button onClick={closeQRCodeModal} className="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            <div className="flex justify-center">
+              <img src={qrCodeUrl} alt="QR Code" className="w-64 h-64" />
+            </div>
+            <p className="text-center text-sm text-gray-600 mt-4">Scannez ce code pour accéder à la facture en ligne</p>
+            <button onClick={closeQRCodeModal} className="mt-4 w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Fermer</button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap justify-between items-center mb-6 gap-2">
         <h1 className="text-2xl font-bold">Facture {invoice.number}</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={handleDownloadPdf}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
-          >
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={handleDownloadPdf} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">
             <FiDownload /> PDF
           </button>
-          <button
-            onClick={handleSendEmail}
-            disabled={sendingEmail || !client?.email}
-            className={`px-4 py-2 rounded flex items-center gap-2 ${
-              !client?.email 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700'
-            } text-white`}
-            title={!client?.email ? "Client sans adresse email" : "Envoyer par email"}
-          >
+          <button onClick={handleSendEmail} disabled={sendingEmail || !client?.email} className={`px-4 py-2 rounded flex items-center gap-2 ${!client?.email ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white`} title={!client?.email ? "Client sans adresse email" : "Envoyer par email"}>
             <FiMail /> {sendingEmail ? 'Envoi...' : 'Email'}
           </button>
-          <button
-            onClick={() => navigate(-1)}
-            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
-          >
+          <button onClick={handleShowQRCode} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2" title="Générer QR Code">
+            <FiGrid /> QR Code
+          </button>
+          <button onClick={() => navigate(-1)} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
             Retour
           </button>
         </div>
       </div>
 
-      {/* Informations client */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 border-b pb-2">Informations client</h2>
         {client ? (
@@ -173,7 +240,6 @@ const InvoiceDetail: React.FC = () => {
         )}
       </div>
 
-      {/* Articles */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 border-b pb-2">Articles</h2>
         <div className="overflow-x-auto">
@@ -191,86 +257,36 @@ const InvoiceDetail: React.FC = () => {
             <tbody>
               {invoice.items.map((item, idx) => (
                 <tr key={idx} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-2 font-medium">
-                    {item.productName || 'Produit'}
-                  </td>
-                  <td className="py-3 px-2 text-gray-600">
-                    {item.productDescription || item.description || '-'}
-                  </td>
-                  <td className="text-right py-3 px-2">
-                    {item.quantity}
-                  </td>
-                  <td className="text-right py-3 px-2">
-                    {item.unitPrice?.toLocaleString()} FCFA
-                  </td>
-                  <td className="text-right py-3 px-2">
-                    {formatTaxRate(item.taxRate || 19.25)}
-                  </td>
-                  <td className="text-right py-3 px-2 font-medium">
-                    {item.total?.toLocaleString()} FCFA
-                  </td>
+                  <td className="py-3 px-2 font-medium">{item.productName || 'Produit'}</td>
+                  <td className="py-3 px-2 text-gray-600">{item.productDescription || item.description || '-'}</td>
+                  <td className="text-right py-3 px-2">{item.quantity}</td>
+                  <td className="text-right py-3 px-2">{item.unitPrice?.toLocaleString()} FCFA</td>
+                  <td className="text-right py-3 px-2">{formatTaxRate(item.taxRate || 19.25)}</td>
+                  <td className="text-right py-3 px-2 font-medium">{item.total?.toLocaleString()} FCFA</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="border-t-2 border-gray-300 bg-gray-50">
-              <tr>
-                <td colSpan={5} className="text-right py-3 px-2 font-medium">
-                  Sous-total HT
-                </td>
-                <td className="text-right py-3 px-2">
-                  {invoice.subtotal.toLocaleString()} FCFA
-                </td>
-              </tr>
-              <tr>
-                <td colSpan={5} className="text-right py-3 px-2 font-medium">
-                  TVA
-                </td>
-                <td className="text-right py-3 px-2">
-                  {invoice.taxTotal.toLocaleString()} FCFA
-                </td>
-              </tr>
-              <tr className="bg-blue-50">
-                <td colSpan={5} className="text-right py-3 px-2 font-bold text-lg">
-                  TOTAL TTC
-                </td>
-                <td className="text-right py-3 px-2 font-bold text-lg text-blue-600">
-                  {invoice.total.toLocaleString()} FCFA
-                </td>
-              </tr>
+              <tr><td colSpan={5} className="text-right py-3 px-2 font-medium">Sous-total HT</td><td className="text-right py-3 px-2">{invoice.subtotal.toLocaleString()} FCFA</td></tr>
+              <tr><td colSpan={5} className="text-right py-3 px-2 font-medium">TVA</td><td className="text-right py-3 px-2">{invoice.taxTotal.toLocaleString()} FCFA</td></tr>
+              <tr className="bg-blue-50"><td colSpan={5} className="text-right py-3 px-2 font-bold text-lg">TOTAL TTC</td><td className="text-right py-3 px-2 font-bold text-lg text-blue-600">{invoice.total.toLocaleString()} FCFA</td></tr>
             </tfoot>
           </table>
         </div>
       </div>
 
-      {/* Paiements */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 border-b pb-2">Paiements</h2>
-        
         {payments.length > 0 ? (
           <div className="overflow-x-auto mb-4">
             <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left py-2 px-2">Date</th>
-                  <th className="text-right py-2 px-2">Montant</th>
-                  <th className="text-left py-2 px-2">Méthode</th>
-                  <th className="text-left py-2 px-2">Transaction</th>
-                  <th className="text-left py-2 px-2">Reçu par</th>
-                </tr>
-              </thead>
+              <thead><tr className="border-b bg-gray-50"><th className="text-left py-2 px-2">Date</th><th className="text-right py-2 px-2">Montant</th><th className="text-left py-2 px-2">Méthode</th><th className="text-left py-2 px-2">Transaction</th><th className="text-left py-2 px-2">Reçu par</th></tr></thead>
               <tbody>
                 {payments.map(p => (
                   <tr key={p.id} className="border-b hover:bg-gray-50">
-                    <td className="py-2 px-2">
-                      {new Date(p.createdAt).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="text-right py-2 px-2">
-                      {p.amount.toLocaleString()} FCFA
-                    </td>
-                    <td className="py-2 px-2">
-                      {p.method === 'cash' ? 'Espèces' : 
-                       p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}
-                    </td>
+                    <td className="py-2 px-2">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</td>
+                    <td className="text-right py-2 px-2">{p.amount.toLocaleString()} FCFA</td>
+                    <td className="py-2 px-2">{p.method === 'cash' ? 'Espèces' : p.method === 'orange_money' ? 'Orange Money' : 'MTN Money'}</td>
                     <td className="py-2 px-2">{p.transactionId || '-'}</td>
                     <td className="py-2 px-2">{p.receiver?.name || '-'}</td>
                   </tr>
@@ -281,96 +297,31 @@ const InvoiceDetail: React.FC = () => {
         ) : (
           <p className="mb-4 text-gray-500">Aucun paiement enregistré.</p>
         )}
-
         <div className="flex flex-wrap justify-between items-center border-t pt-4">
-          <div>
-            <p className="text-sm">
-              <span className="font-medium">Total payé:</span>{' '}
-              <span className="text-green-600">{totalPaid.toLocaleString()} FCFA</span>
-            </p>
-            <p className="text-sm">
-              <span className="font-medium">Reste à payer:</span>{' '}
-              <span className={`${remaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {remaining.toLocaleString()} FCFA
-              </span>
-            </p>
-          </div>
-          {invoice.status === 'draft' && remaining > 0 && 
-           (user?.role === 'cashier' || user?.role === 'admin') && (
-            <button
-              onClick={() => setShowPaymentForm(!showPaymentForm)}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              {showPaymentForm ? 'Annuler' : 'Ajouter un paiement'}
-            </button>
+          <div><p className="text-sm"><span className="font-medium">Total payé:</span> <span className="text-green-600">{totalPaid.toLocaleString()} FCFA</span></p>
+          <p className="text-sm"><span className="font-medium">Reste à payer:</span> <span className={remaining > 0 ? 'text-red-600' : 'text-green-600'}>{remaining.toLocaleString()} FCFA</span></p></div>
+          {invoice.status === 'draft' && remaining > 0 && (user?.role === 'cashier' || user?.role === 'admin') && (
+            <button onClick={() => setShowPaymentForm(!showPaymentForm)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">{showPaymentForm ? 'Annuler' : 'Ajouter un paiement'}</button>
           )}
         </div>
-
         {showPaymentForm && (
           <form onSubmit={handlePayment} className="mt-4 border-t pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Montant *
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  required
-                  max={remaining}
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(parseFloat(e.target.value))}
-                  className="w-full border border-gray-300 rounded-md p-2"
-                />
-                <p className="text-xs text-gray-500 mt-1">Maximum: {remaining.toLocaleString()} FCFA</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Méthode *
-                </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => {
-                    setPaymentMethod(e.target.value as any);
-                    setTransactionId('');
-                  }}
-                  className="w-full border border-gray-300 rounded-md p-2"
-                >
-                  <option value="cash">Espèces</option>
-                  <option value="orange_money">Orange Money</option>
-                  <option value="mtn_money">MTN Money</option>
-                </select>
-              </div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Montant *</label>
+              <input type="number" step="1" required max={remaining} value={paymentAmount} onChange={(e) => setPaymentAmount(parseFloat(e.target.value))} className="w-full border border-gray-300 rounded-md p-2" />
+              <p className="text-xs text-gray-500 mt-1">Maximum: {remaining.toLocaleString()} FCFA</p></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Méthode *</label>
+              <select value={paymentMethod} onChange={(e) => { setPaymentMethod(e.target.value as any); setTransactionId(''); }} className="w-full border border-gray-300 rounded-md p-2">
+                <option value="cash">Espèces</option><option value="orange_money">Orange Money</option><option value="mtn_money">MTN Money</option>
+              </select></div>
               {(paymentMethod === 'orange_money' || paymentMethod === 'mtn_money') && (
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Numéro de transaction *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={transactionId}
-                    onChange={(e) => setTransactionId(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md p-2"
-                    placeholder="Ex: OM123456789"
-                  />
-                </div>
+                <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Numéro de transaction *</label>
+                <input type="text" required value={transactionId} onChange={(e) => setTransactionId(e.target.value)} className="w-full border border-gray-300 rounded-md p-2" placeholder="Ex: OM123456789" /></div>
               )}
             </div>
             <div className="mt-4 flex gap-2">
-              <button
-                type="submit"
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-              >
-                Enregistrer le paiement
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowPaymentForm(false)}
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-              >
-                Annuler
-              </button>
+              <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Enregistrer le paiement</button>
+              <button type="button" onClick={() => setShowPaymentForm(false)} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Annuler</button>
             </div>
           </form>
         )}

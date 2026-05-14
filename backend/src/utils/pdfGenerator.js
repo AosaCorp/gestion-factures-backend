@@ -1,6 +1,7 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
+const { generateInvoiceQRCode } = require('./qrCodeService');
 
 const formatAmount = (amount) => {
   const num = parseFloat(amount);
@@ -24,8 +25,8 @@ const formatInvoiceNumber = (number) => {
   return number;
 };
 
-const generateInvoicePDF = (invoice, client, items, payments, company) => {
-  return new Promise((resolve, reject) => {
+const generateInvoicePDF = async (invoice, client, items, payments, company) => {
+  return new Promise(async (resolve, reject) => {
     try {
       const doc = new PDFDocument({ margin: 50, size: 'A4' });
       const buffers = [];
@@ -34,6 +35,14 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       
       let currentY = 50;
+      
+      // Générer le QR Code pour la facture
+      let qrCodeBuffer = null;
+      try {
+        qrCodeBuffer = await generateInvoiceQRCode(invoice);
+      } catch (err) {
+        console.error('Erreur génération QR Code:', err.message);
+      }
       
       // Logo
       if (company && company.logo) {
@@ -58,6 +67,15 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
           }
         } catch (err) {
           console.error('Erreur chargement logo:', err.message);
+        }
+      }
+      
+      // QR Code (en haut à droite)
+      if (qrCodeBuffer) {
+        try {
+          doc.image(qrCodeBuffer, 460, currentY, { width: 80, height: 80 });
+        } catch (err) {
+          console.error('Erreur placement QR Code:', err.message);
         }
       }
       
@@ -95,13 +113,12 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       doc.text('Détails', 50, currentY);
       currentY += 25;
       
-      // Positions des colonnes - AGRANDIES POUR ÉVITER LE COLLAGE
       const colArticle = 50;
       const colDesc = 150;
-      const colQty = 270;
+      const colQty = 280;
       const colPrice = 330;
-      const colTax = 420;  // Augmenté de 400 à 420
-      const colTotal = 490; // Augmenté de 470 à 490
+      const colTax = 420;
+      const colTotal = 490;
       
       doc.font('Helvetica-Bold').fontSize(10);
       doc.text('Article', colArticle, currentY);
@@ -134,7 +151,7 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
         
         currentY += 20;
         
-        if (currentY > 700) {
+        if (currentY > 650) {
           doc.addPage();
           currentY = 50;
         }
@@ -158,17 +175,28 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
       doc.text(`TOTAL : ${formatAmount(total)}`, 400, currentY, { align: 'right', width: 150 });
       currentY += 40;
       
+      // Information QR Code
+      if (qrCodeBuffer) {
+        doc.font('Helvetica-Oblique').fontSize(8);
+        doc.text('Scannez ce QR code pour accéder à la facture en ligne', 460, currentY + 65, { width: 100, align: 'center' });
+      }
+      
       // Paiements
       if (payments && payments.length > 0) {
         doc.font('Helvetica-Bold').fontSize(12);
         doc.text('Paiements effectués', 50, currentY);
         currentY += 25;
         
+        const colDate = 50;
+        const colAmount = 180;
+        const colMethod = 300;
+        const colReceiver = 420;
+        
         doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('Date', 50, currentY);
-        doc.text('Montant', 180, currentY);
-        doc.text('Méthode', 300, currentY);
-        doc.text('Reçu par', 420, currentY);
+        doc.text('Date', colDate, currentY);
+        doc.text('Montant', colAmount, currentY);
+        doc.text('Méthode', colMethod, currentY);
+        doc.text('Reçu par', colReceiver, currentY);
         currentY += 15;
         
         doc.moveTo(50, currentY).lineTo(550, currentY).stroke();
@@ -176,16 +204,16 @@ const generateInvoicePDF = (invoice, client, items, payments, company) => {
         
         doc.font('Helvetica').fontSize(9);
         for (const pmt of payments) {
-          doc.text(new Date(pmt.createdAt).toLocaleDateString('fr-FR'), 50, currentY);
-          doc.text(formatAmount(pmt.amount), 180, currentY);
+          doc.text(new Date(pmt.createdAt).toLocaleDateString('fr-FR'), colDate, currentY);
+          doc.text(formatAmount(pmt.amount), colAmount, currentY);
           
           let methodLabel = '';
           if (pmt.method === 'cash') methodLabel = 'Espèces';
           else if (pmt.method === 'orange_money') methodLabel = 'Orange Money';
           else if (pmt.method === 'mtn_money') methodLabel = 'MTN Money';
           else methodLabel = pmt.method;
-          doc.text(methodLabel, 300, currentY);
-          doc.text(pmt.receiver ? pmt.receiver.name : '', 420, currentY);
+          doc.text(methodLabel, colMethod, currentY);
+          doc.text(pmt.receiver ? pmt.receiver.name : '', colReceiver, currentY);
           currentY += 20;
         }
         
