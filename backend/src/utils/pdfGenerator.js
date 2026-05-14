@@ -115,7 +115,7 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
       
       const colArticle = 50;
       const colDesc = 150;
-      const colQty = 280;
+      const colQty = 270;
       const colPrice = 330;
       const colTax = 420;
       const colTotal = 490;
@@ -151,7 +151,7 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
         
         currentY += 20;
         
-        if (currentY > 650) {
+        if (currentY > 600) {
           doc.addPage();
           currentY = 50;
         }
@@ -173,12 +173,15 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
       currentY += 25;
       doc.font('Helvetica-Bold').fontSize(12);
       doc.text(`TOTAL : ${formatAmount(total)}`, 400, currentY, { align: 'right', width: 150 });
-      currentY += 40;
+      currentY += 30;
       
-      // Information QR Code
+      // Information QR Code (corrigé)
       if (qrCodeBuffer) {
         doc.font('Helvetica-Oblique').fontSize(8);
-        doc.text('Scannez ce QR code pour accéder à la facture en ligne', 460, currentY + 65, { width: 100, align: 'center' });
+        doc.text('Scannez ce QR code pour accéder', 460, currentY, { width: 100, align: 'center' });
+        currentY += 10;
+        doc.text('à la facture en ligne', 460, currentY, { width: 100, align: 'center' });
+        currentY += 20;
       }
       
       // Paiements
@@ -221,7 +224,8 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
         const remaining = total - totalPaid;
         currentY += 10;
         doc.font('Helvetica-Bold').fontSize(10);
-        doc.text(`Solde restant : ${remaining > 0 ? formatAmount(remaining) : '0 FCFA'}`, 400, currentY, { align: 'right', width: 150 });
+        const remainingText = remaining > 0 ? formatAmount(remaining) : '0 FCFA';
+        doc.text(`Solde restant : ${remainingText}`, 400, currentY, { align: 'right', width: 150 });
         currentY += 30;
       }
       
