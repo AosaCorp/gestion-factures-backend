@@ -126,8 +126,8 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
       const colDesc = 130;
       const colQty = 250;
       const colPrice = 310;
-      const colTax = 400;
-      const colTotal = 470;
+      const colTax = 390;
+      const colTotal = 460;
       
       doc.font('Helvetica-Bold').fontSize(10);
       doc.text('Article', colArticle, currentY);
@@ -184,14 +184,12 @@ const generateInvoicePDF = async (invoice, client, items, payments, company) => 
       doc.text(`TOTAL : ${formatAmount(total)}`, 400, currentY, { align: 'right', width: 150 });
       currentY += 30;
       
-      // Information QR Code
+      // Information QR Code (CORRIGÉ)
       if (qrCodeBuffer) {
         doc.font('Helvetica-Oblique').fontSize(8);
-        doc.text('Scannez ce QR code', 460, currentY, { width: 100, align: 'center' });
+        doc.text('Scannez ce QR code pour accéder', 460, currentY, { width: 100, align: 'center' });
         currentY += 10;
-        doc.text('pour accéder à la', 460, currentY, { width: 100, align: 'center' });
-        currentY += 10;
-        doc.text('facture en ligne', 460, currentY, { width: 100, align: 'center' });
+        doc.text('à la facture en ligne', 460, currentY, { width: 100, align: 'center' });
         currentY += 20;
       }
       
