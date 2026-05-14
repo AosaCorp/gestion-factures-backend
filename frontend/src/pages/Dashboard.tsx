@@ -24,6 +24,7 @@ import {
   Filler
 } from 'chart.js';
 import toast from 'react-hot-toast';
+import StatsWidgets from '../components/StatsWidgets';
 
 ChartJS.register(
   CategoryScale,
@@ -90,6 +91,7 @@ const Dashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState<'week' | 'month' | 'year'>('month');
+  const [showAdvancedStats, setShowAdvancedStats] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -307,10 +309,23 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
-      {/* En-tête */}
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold">Bonjour, {user?.name}</h1>
-        <p className="text-gray-600">Résumé de votre activité</p>
+      {/* En-tête avec bouton pour statistiques avancées */}
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Bonjour, {user?.name}</h1>
+          <p className="text-gray-600">Résumé de votre activité</p>
+        </div>
+        <button
+          onClick={() => setShowAdvancedStats(!showAdvancedStats)}
+          className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+            showAdvancedStats 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          <FiBarChart2 />
+          {showAdvancedStats ? 'Masquer stats avancées' : 'Statistiques avancées'}
+        </button>
       </div>
 
       {/* KPI Cards */}
@@ -535,6 +550,13 @@ const Dashboard: React.FC = () => {
           <Link to="/invoices" className="text-blue-600 text-sm hover:underline">Voir toutes les factures →</Link>
         </div>
       </div>
+
+      {/* SECTION STATISTIQUES AVANCÉES - AJOUTÉE */}
+      {showAdvancedStats && (
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <StatsWidgets />
+        </div>
+      )}
     </div>
   );
 };
