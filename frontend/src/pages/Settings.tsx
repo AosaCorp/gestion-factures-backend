@@ -3,10 +3,12 @@ import { companyService, Company } from '../services/companyService';
 import { userService } from '../services/userService';
 import { clientService } from '../services/clientService';
 import { invoiceService } from '../services/invoiceService';
+import { reminderService, Reminder, ReminderStats } from '../services/reminderService';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { FiBell, FiSend, FiRefreshCw, FiCheckCircle, FiXCircle, FiClock } from 'react-icons/fi';
 
-type TabType = 'general' | 'financial' | 'logo' | 'system';
+type TabType = 'general' | 'financial' | 'logo' | 'system' | 'reminders';
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('general');
@@ -23,27 +25,39 @@ const Settings: React.FC = () => {
     memory: '25.81 MB',
     dbSize: '80 KB'
   });
+  
+  // États pour les rappels
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [reminderStats, setReminderStats] = useState<ReminderStats | null>(null);
+  const [loadingReminders, setLoadingReminders] = useState(false);
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   useEffect(() => {
     fetchCompany();
     fetchSystemInfo();
   }, []);
 
-  const fetchCompany = async () => {
-  try {
-    const data = await companyService.get();
-    setCompany(data);
-    if (data.logo) {
-      const base = api.defaults.baseURL?.replace('/api', '') || '';
-      // data.logo contient déjà "uploads/logo-xxx.png"
-      setLogoPreview(`${base}/${data.logo}`);
+  useEffect(() => {
+    if (activeTab === 'reminders') {
+      fetchReminders();
     }
-  } catch (error) {
-    toast.error('Erreur chargement');
-  } finally {
-    setLoading(false);
-  }
-};
+  }, [activeTab]);
+
+  const fetchCompany = async () => {
+    try {
+      const data = await companyService.get();
+      setCompany(data);
+      if (data.logo) {
+        const base = api.defaults.baseURL?.replace('/api', '') || '';
+        setLogoPreview(`${base}/${data.logo}`);
+      }
+    } catch (error) {
+      toast.error('Erreur chargement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchSystemInfo = async () => {
     try {
       const users = await userService.getAll();
@@ -64,6 +78,45 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error('Erreur chargement infos système', error);
       toast.error('Erreur lors du chargement des informations système');
+    }
+  };
+
+  const fetchReminders = async () => {
+    setLoadingReminders(true);
+    try {
+      const [stats, list] = await Promise.all([
+        reminderService.getStats(),
+        reminderService.getAll()
+      ]);
+      setReminderStats(stats);
+      setReminders(list);
+    } catch (error) {
+      toast.error('Erreur chargement rappels');
+    } finally {
+      setLoadingReminders(false);
+    }
+  };
+
+  const handleRunCheck = async () => {
+    try {
+      const result = await reminderService.runCheck();
+      toast.success(`${result.created} nouveau(x) rappel(s) créé(s)`);
+      fetchReminders();
+    } catch (error) {
+      toast.error('Erreur lors de la vérification');
+    }
+  };
+
+  const handleRunSend = async () => {
+    setSendingReminders(true);
+    try {
+      const result = await reminderService.runSend();
+      toast.success(`${result.success} rappel(s) envoyé(s), ${result.failed} échec(s)`);
+      fetchReminders();
+    } catch (error) {
+      toast.error('Erreur lors de l\'envoi');
+    } finally {
+      setSendingReminders(false);
     }
   };
 
@@ -308,22 +361,90 @@ const Settings: React.FC = () => {
     </div>
   );
 
+  const renderRemindersTab = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Gestion des rappels automatiques</h2>
+        <div className="flex gap-2">
+          <button onClick={handleRunCheck} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2">
+            <FiRefreshCw /> Vérifier les impayés
+          </button>
+          <button onClick={handleRunSend} disabled={sendingReminders} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 disabled:opacity-50">
+            <FiSend /> {sendingReminders ? 'Envoi...' : 'Envoyer les rappels'}
+          </button>
+        </div>
+      </div>
+      
+      {reminderStats && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="bg-white p-4 rounded shadow border"><p className="text-sm text-gray-500">Total rappels</p><p className="text-2xl font-bold">{reminderStats.total}</p></div>
+          <div className="bg-white p-4 rounded shadow border"><p className="text-sm text-gray-500">Envoyés</p><p className="text-2xl font-bold text-green-600">{reminderStats.sent}</p></div>
+          <div className="bg-white p-4 rounded shadow border"><p className="text-sm text-gray-500">En attente</p><p className="text-2xl font-bold text-yellow-600">{reminderStats.pending}</p></div>
+          <div className="bg-white p-4 rounded shadow border"><p className="text-sm text-gray-500">Échecs</p><p className="text-2xl font-bold text-red-600">{reminderStats.failed}</p></div>
+          <div className="bg-white p-4 rounded shadow border"><p className="text-sm text-gray-500">Taux succès</p><p className="text-2xl font-bold">{reminderStats.total > 0 ? Math.round((reminderStats.sent / reminderStats.total) * 100) : 0}%</p></div>
+        </div>
+      )}
+      
+      <div className="bg-white rounded shadow border overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="p-3 text-left">Facture</th>
+              <th className="p-3 text-left">Type</th>
+              <th className="p-3 text-left">Statut</th>
+              <th className="p-3 text-left">Date programmée</th>
+              <th className="p-3 text-left">Date envoi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingReminders ? (
+              <tr><td colSpan={5} className="text-center py-8">Chargement...</td></tr>
+            ) : reminders.length === 0 ? (
+              <tr><td colSpan={5} className="text-center py-8 text-gray-500">Aucun rappel</td></tr>
+            ) : (
+              reminders.map(r => (
+                <tr key={r.id} className="border-t hover:bg-gray-50">
+                  <td className="p-3">{r.Invoice?.number || r.invoiceId}</td>
+                  <td className="p-3">
+                    {r.reminderType === 'first' ? '🔔 1er rappel' : 
+                     r.reminderType === 'second' ? '🔔🔔 2ème rappel' : 
+                     r.reminderType === 'third' ? '🔔🔔🔔 3ème rappel' : '⚠️ Dernier rappel'}
+                  </td>
+                  <td className="p-3">
+                    {r.status === 'sent' ? <span className="text-green-600"><FiCheckCircle className="inline mr-1" />Envoyé</span> : 
+                     r.status === 'pending' ? <span className="text-yellow-600"><FiClock className="inline mr-1" />En attente</span> : 
+                     <span className="text-red-600"><FiXCircle className="inline mr-1" />Échec</span>}
+                  </td>
+                  <td className="p-3">{new Date(r.scheduledDate).toLocaleString('fr-FR')}</td>
+                  <td className="p-3">{r.sentDate ? new Date(r.sentDate).toLocaleString('fr-FR') : '-'}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Paramètres</h1>
       <div className="border-b border-gray-200 mb-6">
-        <nav className="flex space-x-8">
-          {(['general', 'financial', 'logo', 'system'] as TabType[]).map(tab => (
+        <nav className="flex flex-wrap gap-2">
+          {(['general', 'financial', 'logo', 'system', 'reminders'] as TabType[]).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm capitalize ${
+              className={`py-2 px-4 rounded-t-lg font-medium text-sm capitalize transition-colors ${
                 activeTab === tab
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              {tab === 'general' ? 'Général' : tab === 'financial' ? 'Financier' : tab === 'logo' ? 'Logo' : 'Système'}
+              {tab === 'general' ? '🏢 Général' : 
+               tab === 'financial' ? '💰 Financier' : 
+               tab === 'logo' ? '🖼️ Logo' : 
+               tab === 'system' ? '⚙️ Système' : '🔔 Rappels'}
             </button>
           ))}
         </nav>
@@ -333,6 +454,7 @@ const Settings: React.FC = () => {
         {activeTab === 'financial' && renderFinancialTab()}
         {activeTab === 'logo' && renderLogoTab()}
         {activeTab === 'system' && renderSystemTab()}
+        {activeTab === 'reminders' && renderRemindersTab()}
       </div>
     </div>
   );

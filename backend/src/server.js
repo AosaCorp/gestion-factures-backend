@@ -35,16 +35,14 @@ async function createAdminIfNotExists() {
 }
 
 // ========== KEEP-ALIVE POUR RENDER (ÉVITE LA VEILLE) ==========
-// Envoie une requête au serveur toutes les 14 minutes pour le maintenir actif
 const SERVER_URL = process.env.RENDER_URL || 'https://gestion-factures-backend-mvdn.onrender.com';
 
 const keepAlive = () => {
-  // Utiliser http ou https selon l'URL
   const protocol = SERVER_URL.startsWith('https') ? https : http;
   
   const request = protocol.get(SERVER_URL, (res) => {
     console.log(`💓 Keep-alive ping: ${res.statusCode} - ${new Date().toLocaleTimeString()}`);
-    res.resume(); // Consommer la réponse pour éviter de garder la connexion ouverte
+    res.resume();
   });
   
   request.on('error', (err) => {
@@ -54,24 +52,45 @@ const keepAlive = () => {
   request.end();
 };
 
-// Démarrer le keep-alive uniquement en production (sur Render)
 if (process.env.NODE_ENV === 'production' && SERVER_URL) {
   console.log('🔄 Keep-alive activé - Ping toutes les 14 minutes');
-  
-  // Premier ping après 1 minute
   setTimeout(keepAlive, 60000);
-  
-  // Puis toutes les 14 minutes (840000 ms)
   setInterval(keepAlive, 14 * 60 * 1000);
 } else {
   console.log('ℹ️ Keep-alive désactivé (environnement développement)');
 }
 // ============================================================
 
+// ========== JOB DE RAPPELS AUTOMATIQUES ==========
+const scheduleReminderJob = () => {
+  const { runReminderJob } = require('./jobs/reminderJob');
+  
+  const now = new Date();
+  const eightAm = new Date();
+  eightAm.setHours(8, 0, 0, 0);
+  
+  let delay = eightAm - now;
+  if (delay < 0) {
+    delay += 24 * 60 * 60 * 1000;
+  }
+  
+  console.log(`⏰ Job rappels programmé dans ${Math.round(delay / 1000 / 60)} minutes`);
+  
+  setTimeout(() => {
+    runReminderJob();
+    setInterval(runReminderJob, 24 * 60 * 60 * 1000);
+  }, delay);
+};
+// =================================================
+
 sequelize.sync()
   .then(async () => {
     console.log('✅ Base de données synchronisée');
     await createAdminIfNotExists();
+    
+    if (process.env.NODE_ENV === 'production') {
+      scheduleReminderJob();
+    }
   })
   .catch(err => console.error('❌ Erreur synchro DB:', err));
 
@@ -90,7 +109,6 @@ server.on('error', (err) => {
   }
 });
 
-// Gestion de l'arrêt propre
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM reçu, arrêt du serveur...');
   server.close(() => {

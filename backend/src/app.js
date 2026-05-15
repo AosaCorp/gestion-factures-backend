@@ -12,6 +12,7 @@ const userRoutes = require('./routes/users');
 const reportRoutes = require('./routes/reports');
 const companyRoutes = require('./routes/company');
 const systemRoutes = require('./routes/system');
+const reminderRoutes = require('./routes/reminders');
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/reminders', reminderRoutes);
 
 app.get('/', (req, res) => {
   res.send('API fonctionne');
