@@ -7,6 +7,7 @@ const Payment = require('./Payment');
 const Company = require('./Company');
 const Reminder = require('./Reminder');
 const Log = require('./Log');
+const ApiKey = require('./ApiKey');
 
 const db = {
   sequelize,
@@ -18,6 +19,7 @@ const db = {
   Payment,
   Company,
   Reminder,
+  ApiKey,
   Log
 };
 
@@ -45,6 +47,11 @@ if (Invoice && User) {
 if (Invoice && Reminder) {
   Invoice.hasMany(Reminder, { foreignKey: 'invoiceId', as: 'reminders' });
   Reminder.belongsTo(Invoice, { foreignKey: 'invoiceId', as: 'invoice' });
+}
+
+if (User && ApiKey) {
+  User.hasMany(ApiKey, { foreignKey: 'userId', as: 'apiKeys' });
+  ApiKey.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 }
 
 module.exports = db;
