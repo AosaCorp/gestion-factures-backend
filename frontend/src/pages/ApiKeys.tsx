@@ -30,11 +30,16 @@ const ApiKeys: React.FC = () => {
 
   const fetchApiKeys = async () => {
     try {
-      const response = await api.get('/api/v1/keys');
+      // Correction: utiliser la bonne URL (sans /api supplémentaire)
+      const response = await api.get('/v1/keys');
       setApiKeys(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur chargement clés API', error);
-      toast.error('Erreur lors du chargement des clés API');
+      if (error.response?.status === 404) {
+        toast.error('Route API non trouvée. Vérifiez la configuration du backend.');
+      } else {
+        toast.error('Erreur lors du chargement des clés API');
+      }
     } finally {
       setLoading(false);
     }
@@ -47,7 +52,8 @@ const ApiKeys: React.FC = () => {
     }
 
     try {
-      const response = await api.post('/api/v1/keys', {
+      // Correction: utiliser la bonne URL (sans /api supplémentaire)
+      const response = await api.post('/v1/keys', {
         name: newKeyName,
         expiresInDays: newKeyExpiresDays
       });
@@ -57,16 +63,22 @@ const ApiKeys: React.FC = () => {
       setShowNewKeyForm(false);
       fetchApiKeys();
       toast.success('Clé API créée avec succès');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur création clé', error);
-      toast.error('Erreur lors de la création');
+      if (error.response?.status === 401) {
+        toast.error('Non autorisé. Vérifiez votre session.');
+      } else if (error.response?.status === 403) {
+        toast.error('Permission refusée. Seuls les administrateurs peuvent créer des clés.');
+      } else {
+        toast.error(error.response?.data?.error || 'Erreur lors de la création');
+      }
     }
   };
 
   const handleRevokeKey = async (id: number, name: string) => {
     if (window.confirm(`Révoquer la clé "${name}" ? Cette action est irréversible.`)) {
       try {
-        await api.post(`/api/v1/keys/${id}/revoke`);
+        await api.post(`/v1/keys/${id}/revoke`);
         toast.success('Clé révoquée');
         fetchApiKeys();
       } catch (error) {
@@ -78,7 +90,7 @@ const ApiKeys: React.FC = () => {
   const handleDeleteKey = async (id: number, name: string) => {
     if (window.confirm(`Supprimer définitivement la clé "${name}" ?`)) {
       try {
-        await api.delete(`/api/v1/keys/${id}`);
+        await api.delete(`/v1/keys/${id}`);
         toast.success('Clé supprimée');
         fetchApiKeys();
       } catch (error) {
