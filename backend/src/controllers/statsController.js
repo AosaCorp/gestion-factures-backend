@@ -53,7 +53,6 @@ exports.getMonthlyStats = async (req, res) => {
     const paidAmounts = [];
     const invoiceCounts = [];
     
-    // 12 derniers mois
     for (let i = 11; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
@@ -66,7 +65,6 @@ exports.getMonthlyStats = async (req, res) => {
       const monthName = date.toLocaleString('fr-FR', { month: 'long' });
       months.push(`${monthName} ${year}`);
       
-      // Total des ventes (factures payées)
       const revenue = await Invoice.sum('total', {
         where: {
           status: 'paid',
@@ -75,7 +73,6 @@ exports.getMonthlyStats = async (req, res) => {
       }) || 0;
       revenues.push(revenue);
       
-      // Total encaissé (paiements)
       const paid = await Payment.sum('amount', {
         where: {
           createdAt: { [Op.between]: [startDate, endDate] }
@@ -83,7 +80,6 @@ exports.getMonthlyStats = async (req, res) => {
       }) || 0;
       paidAmounts.push(paid);
       
-      // Nombre de factures
       const count = await Invoice.count({
         where: {
           createdAt: { [Op.between]: [startDate, endDate] }
@@ -125,21 +121,21 @@ exports.getTopClients = async (req, res) => {
       limit: limit
     });
     
-    const formattedClients = topClients.map(item => ({
-      id: item.client.id,
-      name: item.client.name,
-      email: item.client.email,
-      phone: item.client.phone,
-      totalSpent: parseFloat(item.dataValues.totalSpent) || 0,
-      invoicesCount: 0 // À calculer séparément si besoin
-    }));
-    
-    // Ajouter le nombre de factures pour chaque client
-    for (const client of formattedClients) {
-      const count = await Invoice.count({
-        where: { clientId: client.id, status: 'paid' }
-      });
-      client.invoicesCount = count;
+    const formattedClients = [];
+    for (const item of topClients) {
+      if (item.client) {
+        const count = await Invoice.count({
+          where: { clientId: item.client.id, status: 'paid' }
+        });
+        formattedClients.push({
+          id: item.client.id,
+          name: item.client.name,
+          email: item.client.email,
+          phone: item.client.phone,
+          totalSpent: parseFloat(item.dataValues.totalSpent) || 0,
+          invoicesCount: count
+        });
+      }
     }
     
     res.json(formattedClients);
@@ -150,15 +146,13 @@ exports.getTopClients = async (req, res) => {
 };
 
 /**
- * Prévision des ventes (basée sur la moyenne des 3 derniers mois)
+ * Prévision des ventes
  */
 exports.getSalesForecast = async (req, res) => {
   try {
     const months = [];
     const historical = [];
-    const forecast = [];
     
-    // Récupérer les 6 derniers mois
     for (let i = 5; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
@@ -180,10 +174,9 @@ exports.getSalesForecast = async (req, res) => {
       historical.push(revenue);
     }
     
-    // Calculer la prévision (moyenne des 3 derniers mois)
     const last3MonthsAvg = historical.slice(-3).reduce((a, b) => a + b, 0) / 3;
     
-    // Générer les 3 prochains mois
+    const forecast = [];
     for (let i = 1; i <= 3; i++) {
       const date = new Date();
       date.setMonth(date.getMonth() + i);
@@ -200,7 +193,7 @@ exports.getSalesForecast = async (req, res) => {
       months: months.slice(-6),
       historical: historical.slice(-6),
       forecast,
-      averageGrowth: historical.slice(-3).reduce((a, b) => a + b, 0) / historical.slice(-6).reduce((a, b) => a + b, 0) * 100
+      averageGrowth: historical.slice(-3).reduce((a, b) => a + b, 0) / (historical.slice(-6).reduce((a, b) => a + b, 0) || 1) * 100
     });
   } catch (error) {
     console.error('Erreur salesForecast:', error);
@@ -209,7 +202,7 @@ exports.getSalesForecast = async (req, res) => {
 };
 
 /**
- * Taux de conversion (factures payées vs émises)
+ * Taux de conversion
  */
 exports.getConversionRate = async (req, res) => {
   try {
@@ -226,7 +219,7 @@ exports.getConversionRate = async (req, res) => {
       draftInvoices,
       cancelledInvoices,
       conversionRate: Math.round(conversionRate * 10) / 10,
-      target: 75 // Objectif de conversion à 75%
+      target: 75
     });
   } catch (error) {
     console.error('Erreur conversionRate:', error);
@@ -235,14 +228,15 @@ exports.getConversionRate = async (req, res) => {
 };
 
 /**
- * Croissance globale (évolution sur la période)
+ * Croissance globale
  */
 exports.getGrowthStats = async (req, res) => {
   try {
-    const period = req.query.period || 'month'; // month, quarter, year
+    const period = req.query.period || 'month';
     
-    let startDate, endDate, previousStartDate;
+    let startDate, endDatePeriod, previousStartDate;
     const now = new Date();
+    endDatePeriod = new Date();
     
     if (period === 'month') {
       startDate = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -256,9 +250,6 @@ exports.getGrowthStats = async (req, res) => {
       previousStartDate = new Date(now.getFullYear() - 1, 0, 1);
     }
     
-    const endDatePeriod = new Date();
-    
-    // Période actuelle
     const currentRevenue = await Invoice.sum('total', {
       where: {
         status: 'paid',
@@ -274,7 +265,6 @@ exports.getGrowthStats = async (req, res) => {
       where: { createdAt: { [Op.between]: [startDate, endDatePeriod] } }
     });
     
-    // Période précédente
     const previousRevenue = await Invoice.sum('total', {
       where: {
         status: 'paid',
@@ -324,42 +314,61 @@ exports.getGrowthStats = async (req, res) => {
  */
 exports.exportStatsPDF = async (req, res) => {
   try {
+    // Importer jspdf
     const jsPDF = require('jspdf');
     const autoTable = require('jspdf-autotable');
     
-    // Récupérer les données
-    const monthlyStats = await exports.getMonthlyStats({}, { json: () => {} });
-    const monthlyData = monthlyStats._events ? monthlyStats : monthlyStats;
+    // Récupérer les données directement depuis les modèles
+    // 1. Croissance
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const previousStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endDatePeriod = new Date();
     
-    // Récupérer les top clients
-    const topClientsReq = { query: { limit: 5 } };
-    let topClients = [];
-    try {
-      const clientsResult = await exports.getTopClients(topClientsReq, { json: (data) => data });
-      topClients = clientsResult || [];
-    } catch (err) {
-      console.error('Erreur top clients:', err);
+    const currentRevenue = await Invoice.sum('total', {
+      where: { status: 'paid', createdAt: { [Op.between]: [startDate, endDatePeriod] } }
+    }) || 0;
+    const previousRevenue = await Invoice.sum('total', {
+      where: { status: 'paid', createdAt: { [Op.between]: [previousStartDate, startDate] } }
+    }) || 0;
+    const revenueGrowth = previousRevenue === 0 ? (currentRevenue > 0 ? 100 : 0) : ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+    
+    const currentInvoices = await Invoice.count({ where: { createdAt: { [Op.between]: [startDate, endDatePeriod] } } });
+    const previousInvoices = await Invoice.count({ where: { createdAt: { [Op.between]: [previousStartDate, startDate] } } });
+    const invoicesGrowth = previousInvoices === 0 ? (currentInvoices > 0 ? 100 : 0) : ((currentInvoices - previousInvoices) / previousInvoices) * 100;
+    
+    const currentClients = await Client.count({ where: { createdAt: { [Op.between]: [startDate, endDatePeriod] } } });
+    const previousClients = await Client.count({ where: { createdAt: { [Op.between]: [previousStartDate, startDate] } } });
+    const clientsGrowth = previousClients === 0 ? (currentClients > 0 ? 100 : 0) : ((currentClients - previousClients) / previousClients) * 100;
+    
+    // 2. Taux de conversion
+    const totalInvoices = await Invoice.count();
+    const paidInvoices = await Invoice.count({ where: { status: 'paid' } });
+    const draftInvoices = await Invoice.count({ where: { status: 'draft' } });
+    const cancelledInvoices = await Invoice.count({ where: { status: 'cancelled' } });
+    const conversionRate = totalInvoices > 0 ? (paidInvoices / totalInvoices) * 100 : 0;
+    
+    // 3. Top clients
+    const topClientsRaw = await Invoice.findAll({
+      attributes: ['clientId', [sequelize.fn('SUM', sequelize.col('total')), 'totalSpent']],
+      where: { status: 'paid' },
+      include: [{ model: Client, as: 'client', attributes: ['id', 'name'] }],
+      group: ['clientId', 'client.id'],
+      order: [[sequelize.literal('totalSpent'), 'DESC']],
+      limit: 5
+    });
+    
+    const topClients = [];
+    for (const item of topClientsRaw) {
+      if (item.client) {
+        topClients.push({
+          name: item.client.name,
+          totalSpent: parseFloat(item.dataValues.totalSpent) || 0
+        });
+      }
     }
     
-    // Récupérer le taux de conversion
-    let conversionRate = { totalInvoices: 0, paidInvoices: 0, draftInvoices: 0, cancelledInvoices: 0, conversionRate: 0, target: 75 };
-    try {
-      const conversionResult = await exports.getConversionRate({}, { json: (data) => data });
-      conversionRate = conversionResult || conversionRate;
-    } catch (err) {
-      console.error('Erreur conversion:', err);
-    }
-    
-    // Récupérer la croissance
-    let growthStats = { revenue: { current: 0, previous: 0, growth: 0 }, invoices: { current: 0, previous: 0, growth: 0 }, clients: { current: 0, previous: 0, growth: 0 } };
-    try {
-      const growthReq = { query: { period: 'month' } };
-      const growthResult = await exports.getGrowthStats(growthReq, { json: (data) => data });
-      growthStats = growthResult || growthStats;
-    } catch (err) {
-      console.error('Erreur croissance:', err);
-    }
-    
+    // Générer PDF
     const doc = new jsPDF.jsPDF ? new jsPDF.jsPDF() : new jsPDF();
     let y = 20;
     
@@ -367,7 +376,7 @@ exports.exportStatsPDF = async (req, res) => {
     doc.text('Rapport Statistique', 14, y);
     y += 15;
     
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')}`, 14, y);
     y += 20;
     
@@ -380,9 +389,9 @@ exports.exportStatsPDF = async (req, res) => {
       startY: y,
       head: [['Indicateur', 'Période actuelle', 'Période précédente', 'Évolution']],
       body: [
-        ['Chiffre d\'affaires', `${(growthStats.revenue.current || 0).toLocaleString()} F`, `${(growthStats.revenue.previous || 0).toLocaleString()} F`, `${(growthStats.revenue.growth || 0).toFixed(1)}%`],
-        ['Factures', growthStats.invoices.current || 0, growthStats.invoices.previous || 0, `${(growthStats.invoices.growth || 0).toFixed(1)}%`],
-        ['Clients', growthStats.clients.current || 0, growthStats.clients.previous || 0, `${(growthStats.clients.growth || 0).toFixed(1)}%`]
+        ['Chiffre d\'affaires', `${currentRevenue.toLocaleString()} F`, `${previousRevenue.toLocaleString()} F`, `${revenueGrowth.toFixed(1)}%`],
+        ['Factures', currentInvoices, previousInvoices, `${invoicesGrowth.toFixed(1)}%`],
+        ['Clients', currentClients, previousClients, `${clientsGrowth.toFixed(1)}%`]
       ]
     });
     
@@ -392,14 +401,13 @@ exports.exportStatsPDF = async (req, res) => {
     doc.text('Taux de conversion', 14, y);
     y += 10;
     
-    const totalInv = conversionRate.totalInvoices || 1;
     autoTable.default(doc, {
       startY: y,
       head: [['Statut', 'Nombre', 'Pourcentage']],
       body: [
-        ['Payées', conversionRate.paidInvoices || 0, `${((conversionRate.paidInvoices / totalInv) * 100).toFixed(1)}%`],
-        ['En attente', conversionRate.draftInvoices || 0, `${((conversionRate.draftInvoices / totalInv) * 100).toFixed(1)}%`],
-        ['Annulées', conversionRate.cancelledInvoices || 0, `${((conversionRate.cancelledInvoices / totalInv) * 100).toFixed(1)}%`]
+        ['Payées', paidInvoices, `${((paidInvoices / totalInvoices) * 100).toFixed(1)}%`],
+        ['En attente', draftInvoices, `${((draftInvoices / totalInvoices) * 100).toFixed(1)}%`],
+        ['Annulées', cancelledInvoices, `${((cancelledInvoices / totalInvoices) * 100).toFixed(1)}%`]
       ]
     });
     
@@ -412,12 +420,8 @@ exports.exportStatsPDF = async (req, res) => {
       
       autoTable.default(doc, {
         startY: y,
-        head: [['Client', 'Total dépensé', 'Factures']],
-        body: topClients.slice(0, 5).map(c => [
-          c.name,
-          `${(c.totalSpent || 0).toLocaleString()} F`,
-          c.invoicesCount || 0
-        ])
+        head: [['Client', 'Total dépensé']],
+        body: topClients.map(c => [c.name, `${c.totalSpent.toLocaleString()} F`])
       });
     }
     
