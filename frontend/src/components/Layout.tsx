@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOffline } from '../contexts/OfflineContext';
 import { 
   FiHome, FiUsers, FiPackage, FiFileText, FiLogOut, 
-  FiSettings, FiBarChart2, FiUser, FiRefreshCw 
+  FiSettings, FiBarChart2, FiUser, FiRefreshCw, FiKey
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -41,12 +41,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Barre de navigation fixe en haut */}
       <header className="bg-white shadow-md sticky top-0 z-10">
         <div className="flex items-center justify-between px-3 py-2">
-          {/* Logo (optionnel sur mobile) */}
+          {/* Logo */}
           <div className="flex items-center shrink-0">
             <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
           </div>
 
-          {/* Menu défilable horizontalement : sur très petit écran, cacher les textes */}
+          {/* Menu défilable horizontalement */}
           <nav className="flex-1 overflow-x-auto whitespace-nowrap scrollbar-hide px-2">
             <ul className="flex items-center space-x-3 md:space-x-4">
               <li>
@@ -95,14 +95,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <span className="hidden md:inline">Paramètres</span>
                     </Link>
                   </li>
+                  <li>
+                    <Link to="/api-keys" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                      <FiKey className="text-lg md:mr-1" />
+                      <span className="hidden md:inline">API Keys</span>
+                    </Link>
+                  </li>
                 </>
               )}
             </ul>
           </nav>
 
-          {/* Zone des actions : Synchronisation + Déconnexion */}
+          {/* Zone des actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Bouton de synchronisation (visible seulement quand il y a des actions en attente ou en ligne) */}
             {!isOffline && pendingActionsCount > 0 && (
               <button
                 onClick={handleSync}
@@ -115,7 +120,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </button>
             )}
 
-            {/* Indicateur hors ligne */}
             {isOffline && (
               <div className="flex items-center gap-1 bg-red-100 text-red-600 px-2 py-1 rounded-lg text-xs">
                 <FiRefreshCw className="opacity-50" size={12} />
@@ -123,7 +127,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             )}
 
-            {/* Déconnexion */}
             <button 
               onClick={handleLogout} 
               className="text-gray-700 hover:text-red-600" 
@@ -135,14 +138,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* Bannière d'information hors ligne (optionnelle) */}
       {isOffline && (
         <div className="bg-yellow-100 border-b border-yellow-200 text-yellow-700 text-xs py-1 px-4 text-center">
           📱 Mode hors ligne - Les modifications seront synchronisées automatiquement au retour de la connexion
         </div>
       )}
 
-      {/* Contenu principal */}
       <main className="flex-1 p-4 md:p-6">
         {children}
       </main>
