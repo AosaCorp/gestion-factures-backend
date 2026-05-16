@@ -310,11 +310,10 @@ exports.getGrowthStats = async (req, res) => {
 };
 
 /**
- * Export des statistiques en PDF (version avec jspdf)
+ * Export des statistiques en HTML (puis converti en PDF par le frontend)
  */
 exports.exportStatsPDF = async (req, res) => {
   try {
-    const { generateStatsPDF } = require('../utils/pdfExportService');
     const { Op } = require('sequelize');
     
     // 1. Récupérer les données de croissance
@@ -339,13 +338,13 @@ exports.exportStatsPDF = async (req, res) => {
     const previousClients = await Client.count({ where: { createdAt: { [Op.between]: [previousStartDate, startDate] } } });
     const clientsGrowth = previousClients === 0 ? (currentClients > 0 ? 100 : 0) : ((currentClients - previousClients) / previousClients) * 100;
     
-    // 2. Récupérer le taux de conversion
+    // 2. Taux de conversion
     const totalInvoices = await Invoice.count();
     const paidInvoices = await Invoice.count({ where: { status: 'paid' } });
     const draftInvoices = await Invoice.count({ where: { status: 'draft' } });
     const cancelledInvoices = await Invoice.count({ where: { status: 'cancelled' } });
     
-    // 3. Récupérer les top clients
+    // 3. Top clients
     const topClientsRaw = await Invoice.findAll({
       attributes: ['clientId', [sequelize.fn('SUM', sequelize.col('total')), 'totalSpent']],
       where: { status: 'paid' },
@@ -365,20 +364,83 @@ exports.exportStatsPDF = async (req, res) => {
       }
     }
     
-    // 4. Générer le PDF
-    const pdfBuffer = await generateStatsPDF({
-      revenue: { current: currentRevenue, previous: previousRevenue, growth: revenueGrowth },
-      invoices: { current: currentInvoices, previous: previousInvoices, growth: invoicesGrowth },
-      clients: { current: currentClients, previous: previousClients, growth: clientsGrowth },
-      conversion: { totalInvoices, paidInvoices, draftInvoices, cancelledInvoices, conversionRate: (paidInvoices / totalInvoices) * 100 },
-      topClients
-    });
+    // 4. Générer le HTML
+    const formatAmount = (amount) => {
+      if (isNaN(amount)) return '0 FCFA';
+      return amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' FCFA';
+    };
     
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=rapport-statistiques.pdf');
-    res.send(pdfBuffer);
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport Statistique</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+        h1 { color: #3b82f6; text-align: center; }
+        h2 { color: #3b82f6; margin-top: 30px; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th { background-color: #3b82f6; color: white; padding: 10px; text-align: left; }
+        td { padding: 8px; border-bottom: 1px solid #ddd; }
+        tr:hover { background-color: #f5f5f5; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .date { text-align: center; color: #666; margin-bottom: 20px; }
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #ddd; padding-top: 20px; }
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Rapport Statistique</h1>
+    </div>
+    <div class="date">
+        Généré le: ${new Date().toLocaleDateString('fr-FR')}
+    </div>
+    
+    <h2>Croissance</h2>
+    <table>
+        <thead>
+            <tr><th>Indicateur</th><th>Période actuelle</th><th>Période précédente</th><th>Évolution</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Chiffre d'affaires</td><td>${formatAmount(currentRevenue)}</td><td>${formatAmount(previousRevenue)}</td><td class="${revenueGrowth >= 0 ? 'positive' : 'negative'}">${revenueGrowth >= 0 ? '↑' : '↓'} ${Math.abs(revenueGrowth).toFixed(1)}%</td></tr>
+            <tr><td>Factures</td><td>${currentInvoices}</td><td>${previousInvoices}</td><td class="${invoicesGrowth >= 0 ? 'positive' : 'negative'}">${invoicesGrowth >= 0 ? '↑' : '↓'} ${Math.abs(invoicesGrowth).toFixed(1)}%</td></tr>
+            <tr><td>Clients</td><td>${currentClients}</td><td>${previousClients}</td><td class="${clientsGrowth >= 0 ? 'positive' : 'negative'}">${clientsGrowth >= 0 ? '↑' : '↓'} ${Math.abs(clientsGrowth).toFixed(1)}%</td></tr>
+        </tbody>
+    </table>
+    
+    <h2>Taux de conversion</h2>
+    <table>
+        <thead><tr><th>Statut</th><th>Nombre</th><th>Pourcentage</th></tr></thead>
+        <tbody>
+            <tr><td>Payées</td><td>${paidInvoices}</td><td>${totalInvoices > 0 ? ((paidInvoices / totalInvoices) * 100).toFixed(1) : 0}%</td></tr>
+            <tr><td>En attente</td><td>${draftInvoices}</td><td>${totalInvoices > 0 ? ((draftInvoices / totalInvoices) * 100).toFixed(1) : 0}%</td></tr>
+            <tr><td>Annulées</td><td>${cancelledInvoices}</td><td>${totalInvoices > 0 ? ((cancelledInvoices / totalInvoices) * 100).toFixed(1) : 0}%</td></tr>
+        </tbody>
+    </table>
+    
+    ${topClients.length > 0 ? `
+    <h2>Top clients</h2>
+    <table>
+        <thead><tr><th>Client</th><th>Total dépensé</th></tr></thead>
+        <tbody>
+            ${topClients.map(c => `<tr><td>${c.name}</td><td>${formatAmount(c.totalSpent)}</td></tr>`).join('')}
+        </tbody>
+    </table>
+    ` : ''}
+    
+    <div class="footer">
+        Rapport généré par l'application Gestion Factures Association
+    </div>
+</body>
+</html>`;
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', 'attachment; filename=rapport-statistiques.html');
+    res.send(html);
   } catch (error) {
     console.error('Erreur exportStatsPDF:', error);
-    res.status(500).json({ message: 'Erreur export PDF: ' + error.message });
+    res.status(500).json({ message: 'Erreur export: ' + error.message });
   }
 };
