@@ -310,16 +310,14 @@ exports.getGrowthStats = async (req, res) => {
 };
 
 /**
- * Export des statistiques en PDF
+ * Export des statistiques en PDF (version avec jspdf)
  */
 exports.exportStatsPDF = async (req, res) => {
   try {
-    // Importer jspdf
-    const jsPDF = require('jspdf');
-    const autoTable = require('jspdf-autotable');
+    const { generateStatsPDF } = require('../utils/pdfExportService');
+    const { Op } = require('sequelize');
     
-    // Récupérer les données directement depuis les modèles
-    // 1. Croissance
+    // 1. Récupérer les données de croissance
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     const previousStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -341,21 +339,20 @@ exports.exportStatsPDF = async (req, res) => {
     const previousClients = await Client.count({ where: { createdAt: { [Op.between]: [previousStartDate, startDate] } } });
     const clientsGrowth = previousClients === 0 ? (currentClients > 0 ? 100 : 0) : ((currentClients - previousClients) / previousClients) * 100;
     
-    // 2. Taux de conversion
+    // 2. Récupérer le taux de conversion
     const totalInvoices = await Invoice.count();
     const paidInvoices = await Invoice.count({ where: { status: 'paid' } });
     const draftInvoices = await Invoice.count({ where: { status: 'draft' } });
     const cancelledInvoices = await Invoice.count({ where: { status: 'cancelled' } });
-    const conversionRate = totalInvoices > 0 ? (paidInvoices / totalInvoices) * 100 : 0;
     
-    // 3. Top clients
+    // 3. Récupérer les top clients
     const topClientsRaw = await Invoice.findAll({
       attributes: ['clientId', [sequelize.fn('SUM', sequelize.col('total')), 'totalSpent']],
       where: { status: 'paid' },
       include: [{ model: Client, as: 'client', attributes: ['id', 'name'] }],
       group: ['clientId', 'client.id'],
       order: [[sequelize.literal('totalSpent'), 'DESC']],
-      limit: 5
+      limit: 10
     });
     
     const topClients = [];
@@ -368,64 +365,15 @@ exports.exportStatsPDF = async (req, res) => {
       }
     }
     
-    // Générer PDF
-    const doc = new jsPDF.jsPDF ? new jsPDF.jsPDF() : new jsPDF();
-    let y = 20;
-    
-    doc.setFontSize(18);
-    doc.text('Rapport Statistique', 14, y);
-    y += 15;
-    
-    doc.setFontSize(10);
-    doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')}`, 14, y);
-    y += 20;
-    
-    // Croissance
-    doc.setFontSize(14);
-    doc.text('Croissance', 14, y);
-    y += 10;
-    
-    autoTable.default(doc, {
-      startY: y,
-      head: [['Indicateur', 'Période actuelle', 'Période précédente', 'Évolution']],
-      body: [
-        ['Chiffre d\'affaires', `${currentRevenue.toLocaleString()} F`, `${previousRevenue.toLocaleString()} F`, `${revenueGrowth.toFixed(1)}%`],
-        ['Factures', currentInvoices, previousInvoices, `${invoicesGrowth.toFixed(1)}%`],
-        ['Clients', currentClients, previousClients, `${clientsGrowth.toFixed(1)}%`]
-      ]
+    // 4. Générer le PDF
+    const pdfBuffer = await generateStatsPDF({
+      revenue: { current: currentRevenue, previous: previousRevenue, growth: revenueGrowth },
+      invoices: { current: currentInvoices, previous: previousInvoices, growth: invoicesGrowth },
+      clients: { current: currentClients, previous: previousClients, growth: clientsGrowth },
+      conversion: { totalInvoices, paidInvoices, draftInvoices, cancelledInvoices, conversionRate: (paidInvoices / totalInvoices) * 100 },
+      topClients
     });
     
-    y = doc.lastAutoTable.finalY + 15;
-    
-    // Taux de conversion
-    doc.text('Taux de conversion', 14, y);
-    y += 10;
-    
-    autoTable.default(doc, {
-      startY: y,
-      head: [['Statut', 'Nombre', 'Pourcentage']],
-      body: [
-        ['Payées', paidInvoices, `${((paidInvoices / totalInvoices) * 100).toFixed(1)}%`],
-        ['En attente', draftInvoices, `${((draftInvoices / totalInvoices) * 100).toFixed(1)}%`],
-        ['Annulées', cancelledInvoices, `${((cancelledInvoices / totalInvoices) * 100).toFixed(1)}%`]
-      ]
-    });
-    
-    y = doc.lastAutoTable.finalY + 15;
-    
-    // Top clients
-    if (topClients.length > 0) {
-      doc.text('Top clients', 14, y);
-      y += 10;
-      
-      autoTable.default(doc, {
-        startY: y,
-        head: [['Client', 'Total dépensé']],
-        body: topClients.map(c => [c.name, `${c.totalSpent.toLocaleString()} F`])
-      });
-    }
-    
-    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=rapport-statistiques.pdf');
     res.send(pdfBuffer);
