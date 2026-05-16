@@ -324,15 +324,43 @@ exports.getGrowthStats = async (req, res) => {
  */
 exports.exportStatsPDF = async (req, res) => {
   try {
-    const monthlyStats = await exports.getMonthlyStats({}, { json: () => {} });
-    const topClients = await exports.getTopClients({ query: { limit: 10 } }, { json: () => {} });
-    const conversionRate = await exports.getConversionRate({}, { json: () => {} });
-    const growthStats = await exports.getGrowthStats({ query: { period: 'month' } }, { json: () => {} });
-    
     const jsPDF = require('jspdf');
     const autoTable = require('jspdf-autotable');
-    const doc = new jsPDF();
     
+    // Récupérer les données
+    const monthlyStats = await exports.getMonthlyStats({}, { json: () => {} });
+    const monthlyData = monthlyStats._events ? monthlyStats : monthlyStats;
+    
+    // Récupérer les top clients
+    const topClientsReq = { query: { limit: 5 } };
+    let topClients = [];
+    try {
+      const clientsResult = await exports.getTopClients(topClientsReq, { json: (data) => data });
+      topClients = clientsResult || [];
+    } catch (err) {
+      console.error('Erreur top clients:', err);
+    }
+    
+    // Récupérer le taux de conversion
+    let conversionRate = { totalInvoices: 0, paidInvoices: 0, draftInvoices: 0, cancelledInvoices: 0, conversionRate: 0, target: 75 };
+    try {
+      const conversionResult = await exports.getConversionRate({}, { json: (data) => data });
+      conversionRate = conversionResult || conversionRate;
+    } catch (err) {
+      console.error('Erreur conversion:', err);
+    }
+    
+    // Récupérer la croissance
+    let growthStats = { revenue: { current: 0, previous: 0, growth: 0 }, invoices: { current: 0, previous: 0, growth: 0 }, clients: { current: 0, previous: 0, growth: 0 } };
+    try {
+      const growthReq = { query: { period: 'month' } };
+      const growthResult = await exports.getGrowthStats(growthReq, { json: (data) => data });
+      growthStats = growthResult || growthStats;
+    } catch (err) {
+      console.error('Erreur croissance:', err);
+    }
+    
+    const doc = new jsPDF.jsPDF ? new jsPDF.jsPDF() : new jsPDF();
     let y = 20;
     
     doc.setFontSize(18);
@@ -341,20 +369,20 @@ exports.exportStatsPDF = async (req, res) => {
     
     doc.setFontSize(12);
     doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')}`, 14, y);
-    y += 15;
+    y += 20;
     
     // Croissance
     doc.setFontSize(14);
     doc.text('Croissance', 14, y);
     y += 10;
     
-    autoTable(doc, {
+    autoTable.default(doc, {
       startY: y,
       head: [['Indicateur', 'Période actuelle', 'Période précédente', 'Évolution']],
       body: [
-        ['Chiffre d\'affaires', `${growthStats.revenue.current.toLocaleString()} F`, `${growthStats.revenue.previous.toLocaleString()} F`, `${growthStats.revenue.growth.toFixed(1)}%`],
-        ['Factures', growthStats.invoices.current, growthStats.invoices.previous, `${growthStats.invoices.growth.toFixed(1)}%`],
-        ['Clients', growthStats.clients.current, growthStats.clients.previous, `${growthStats.clients.growth.toFixed(1)}%`]
+        ['Chiffre d\'affaires', `${(growthStats.revenue.current || 0).toLocaleString()} F`, `${(growthStats.revenue.previous || 0).toLocaleString()} F`, `${(growthStats.revenue.growth || 0).toFixed(1)}%`],
+        ['Factures', growthStats.invoices.current || 0, growthStats.invoices.previous || 0, `${(growthStats.invoices.growth || 0).toFixed(1)}%`],
+        ['Clients', growthStats.clients.current || 0, growthStats.clients.previous || 0, `${(growthStats.clients.growth || 0).toFixed(1)}%`]
       ]
     });
     
@@ -364,22 +392,41 @@ exports.exportStatsPDF = async (req, res) => {
     doc.text('Taux de conversion', 14, y);
     y += 10;
     
-    autoTable(doc, {
+    const totalInv = conversionRate.totalInvoices || 1;
+    autoTable.default(doc, {
       startY: y,
       head: [['Statut', 'Nombre', 'Pourcentage']],
       body: [
-        ['Payées', conversionRate.paidInvoices, `${((conversionRate.paidInvoices / conversionRate.totalInvoices) * 100).toFixed(1)}%`],
-        ['En attente', conversionRate.draftInvoices, `${((conversionRate.draftInvoices / conversionRate.totalInvoices) * 100).toFixed(1)}%`],
-        ['Annulées', conversionRate.cancelledInvoices, `${((conversionRate.cancelledInvoices / conversionRate.totalInvoices) * 100).toFixed(1)}%`]
+        ['Payées', conversionRate.paidInvoices || 0, `${((conversionRate.paidInvoices / totalInv) * 100).toFixed(1)}%`],
+        ['En attente', conversionRate.draftInvoices || 0, `${((conversionRate.draftInvoices / totalInv) * 100).toFixed(1)}%`],
+        ['Annulées', conversionRate.cancelledInvoices || 0, `${((conversionRate.cancelledInvoices / totalInv) * 100).toFixed(1)}%`]
       ]
     });
     
-    const pdfBuffer = doc.output('arraybuffer');
+    y = doc.lastAutoTable.finalY + 15;
+    
+    // Top clients
+    if (topClients.length > 0) {
+      doc.text('Top clients', 14, y);
+      y += 10;
+      
+      autoTable.default(doc, {
+        startY: y,
+        head: [['Client', 'Total dépensé', 'Factures']],
+        body: topClients.slice(0, 5).map(c => [
+          c.name,
+          `${(c.totalSpent || 0).toLocaleString()} F`,
+          c.invoicesCount || 0
+        ])
+      });
+    }
+    
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=rapport-statistiques.pdf');
-    res.send(Buffer.from(pdfBuffer));
+    res.send(pdfBuffer);
   } catch (error) {
     console.error('Erreur exportStatsPDF:', error);
-    res.status(500).json({ message: 'Erreur export PDF' });
+    res.status(500).json({ message: 'Erreur export PDF: ' + error.message });
   }
 };
