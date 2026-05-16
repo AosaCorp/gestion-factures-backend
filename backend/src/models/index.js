@@ -3,16 +3,9 @@ const path = require('path');
 const Sequelize = require('sequelize');
 const process = require('process');
 const basename = path.basename(__filename);
-const env = process.env.NODE_ENV || 'development';
-const config = require(__dirname + '/../config/config.json')[env];
-const db = {};
+const sequelize = require('../config/database'); // Utiliser la connexion directe
 
-let sequelize;
-if (config.use_env_variable) {
-  sequelize = new Sequelize(process.env[config.use_env_variable], config);
-} else {
-  sequelize = new Sequelize(config.database, config.username, config.password, config);
-}
+const db = {};
 
 // Importer tous les modèles
 const Client = require('./Client');
@@ -23,23 +16,14 @@ const Payment = require('./Payment');
 const Company = require('./Company');
 const Reminder = require('./Reminder');
 
-// Initialiser les modèles
-const models = {
-  Client,
-  Product,
-  User,
-  Invoice,
-  Payment,
-  Company,
-  Reminder
-};
-
-// Associer les modèles
-Object.values(models).forEach(model => {
-  if (model.associate) {
-    model.associate(models);
-  }
-});
+// Initialiser les modèles avec sequelize
+Client.init(sequelize);
+Product.init(sequelize);
+User.init(sequelize);
+Invoice.init(sequelize);
+Payment.init(sequelize);
+Company.init(sequelize);
+Reminder.init(sequelize);
 
 // Associations manuelles
 if (Invoice && Client) {
@@ -72,6 +56,16 @@ db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
 // Ajouter tous les modèles à db
+const models = {
+  Client,
+  Product,
+  User,
+  Invoice,
+  Payment,
+  Company,
+  Reminder
+};
+
 Object.keys(models).forEach(modelName => {
   db[modelName] = models[modelName];
 });

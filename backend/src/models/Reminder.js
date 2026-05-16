@@ -9,11 +9,7 @@ const Reminder = sequelize.define('Reminder', {
   },
   invoiceId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'Invoices',
-      key: 'id'
-    }
+    allowNull: false
   },
   reminderType: {
     type: DataTypes.ENUM('first', 'second', 'third', 'final'),
@@ -25,7 +21,8 @@ const Reminder = sequelize.define('Reminder', {
   },
   scheduledDate: {
     type: DataTypes.DATE,
-    allowNull: false
+    allowNull: false,
+    defaultValue: DataTypes.NOW
   },
   sentDate: {
     type: DataTypes.DATE,
