@@ -6,6 +6,7 @@ const Invoice = require('./Invoice');
 const Payment = require('./Payment');
 const Company = require('./Company');
 const Reminder = require('./Reminder');
+const Log = require('./Log');
 
 const db = {
   sequelize,
@@ -16,7 +17,8 @@ const db = {
   Invoice,
   Payment,
   Company,
-  Reminder
+  Reminder,
+  Log
 };
 
 // Associations

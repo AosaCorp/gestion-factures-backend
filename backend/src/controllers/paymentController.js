@@ -10,7 +10,7 @@ exports.getPayments = async (req, res) => {
 
     const { count, rows } = await Payment.findAndCountAll({
       include: [
-        { model: Invoice, include: [{ model: User, as: 'createdByUser', attributes: ['id', 'name'] }] },
+        { model: Invoice, as: 'Invoice', include: [{ model: User, as: 'createdByUser', attributes: ['id', 'name'] }] },
         { model: User, as: 'receiver', attributes: ['id', 'name'] }
       ],
       limit: parseInt(limit),
@@ -56,7 +56,6 @@ exports.createPayment = async (req, res) => {
     const remaining = parseFloat(invoice.total) - payments;
     console.log('Solde restant:', remaining, 'Montant proposé:', amount);
 
-    // Tolérance pour les erreurs d'arrondi
     if (amount > remaining + 0.001) {
       await t.rollback();
       return res.status(400).json({ message: 'Le montant dépasse le solde dû' });

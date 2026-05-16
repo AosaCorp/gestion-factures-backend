@@ -40,16 +40,16 @@ exports.createInvoice = async (req, res) => {
       taxTotal += itemTax;
 
       invoiceItems.push({
-  productId: product.id,
-  productName: product.name,                 // 'Casque Bluetooth'
-  productDescription: product.category || product.description || '', // 'Informatique'
-  quantity,
-  unitPrice,
-  taxRate,
-  subtotal: itemSubtotal,
-  taxAmount: itemTax,
-  total: itemTotal
-});
+        productId: product.id,
+        productName: product.name,
+        productDescription: product.category || product.description || '',
+        quantity,
+        unitPrice,
+        taxRate,
+        subtotal: itemSubtotal,
+        taxAmount: itemTax,
+        total: itemTotal
+      });
     }
 
     const total = subtotal + taxTotal;
@@ -101,7 +101,7 @@ exports.getInvoices = async (req, res) => {
       include: [
         { model: Client, as: 'client', attributes: ['id', 'name', 'email'] },
         { model: User, as: 'createdByUser', attributes: ['id', 'name'] },
-        { model: Payment, include: [{ model: User, as: 'receiver', attributes: ['id', 'name'] }] }
+        { model: Payment, as: 'Payments', include: [{ model: User, as: 'receiver', attributes: ['id', 'name'] }] }
       ],
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -128,7 +128,7 @@ exports.getAllInvoices = async (req, res) => {
       include: [
         { model: Client, as: 'client', attributes: ['id', 'name', 'email'] },
         { model: User, as: 'createdByUser', attributes: ['id', 'name'] },
-        { model: Payment, include: [{ model: User, as: 'receiver', attributes: ['id', 'name'] }] }
+        { model: Payment, as: 'Payments', include: [{ model: User, as: 'receiver', attributes: ['id', 'name'] }] }
       ],
       order: [['createdAt', 'DESC']]
     });
@@ -145,7 +145,7 @@ exports.getInvoiceById = async (req, res) => {
       include: [
         { model: Client, as: 'client', attributes: ['id', 'name', 'email', 'phone', 'address'] },
         { model: User, as: 'createdByUser', attributes: ['id', 'name'] },
-        { model: Payment, include: [{ model: User, as: 'receiver', attributes: ['id', 'name'] }] }
+        { model: Payment, as: 'Payments', include: [{ model: User, as: 'receiver', attributes: ['id', 'name'] }] }
       ]
     });
     if (!invoice) {
@@ -192,8 +192,6 @@ exports.cancelInvoice = async (req, res) => {
   }
 };
 
-
-
 // Envoi de la facture par email
 exports.sendInvoiceEmail = async (req, res) => {
   try {
@@ -204,7 +202,7 @@ exports.sendInvoiceEmail = async (req, res) => {
     const invoice = await Invoice.findByPk(req.params.id, {
       include: [
         { model: Client, as: 'client' },
-        { model: Payment, include: [{ model: User, as: 'receiver' }] }
+        { model: Payment, as: 'Payments', include: [{ model: User, as: 'receiver' }] }
       ]
     });
     

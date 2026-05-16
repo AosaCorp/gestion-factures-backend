@@ -20,7 +20,7 @@ exports.getSalesReport = async (req, res) => {
       where,
       include: [
         { model: Client, as: 'client', attributes: ['id', 'name'] },
-        { model: Payment, attributes: ['amount', 'method', 'createdAt'] }
+        { model: Payment, as: 'Payments', attributes: ['amount', 'method', 'createdAt'] }
       ],
       order: [['createdAt', 'DESC']]
     });
@@ -71,7 +71,7 @@ exports.getTopProducts = async (req, res) => {
     const productMap = {};
     invoices.forEach(inv => {
       (inv.items || []).forEach(item => {
-        const key = item.description || `Produit ${item.productId}`;
+        const key = item.productName || `Produit ${item.productId}`;
         if (!productMap[key]) {
           productMap[key] = { name: key, quantity: 0, revenue: 0, count: 0 };
         }
@@ -102,7 +102,7 @@ exports.getClientsReport = async (req, res) => {
       where: whereInvoice,
       include: [
         { model: Client, as: 'client', attributes: ['id', 'name'] },
-        { model: Payment }
+        { model: Payment, as: 'Payments' }
       ]
     });
     const clientMap = new Map();
@@ -149,7 +149,7 @@ exports.getPaymentsReport = async (req, res) => {
     }
     const payments = await Payment.findAll({
       where,
-      include: [{ model: Invoice, include: [{ model: Client, as: 'client' }] }],
+      include: [{ model: Invoice, as: 'Invoice', include: [{ model: Client, as: 'client' }] }],
       order: [['createdAt', 'DESC']]
     });
 
