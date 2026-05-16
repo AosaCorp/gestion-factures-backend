@@ -14,7 +14,7 @@ router.get('/public/:id', async (req, res) => {
     const invoice = await Invoice.findByPk(req.params.id, {
       include: [
         { model: Client, as: 'client', attributes: ['id', 'name', 'email', 'phone', 'address'] },
-        { model: Payment, include: [{ model: User, as: 'receiver', attributes: ['id', 'name'] }] }
+        { model: Payment, as: 'Payments', include: [{ model: User, as: 'receiver', attributes: ['id', 'name'] }] }
       ]
     });
     
@@ -22,7 +22,6 @@ router.get('/public/:id', async (req, res) => {
       return res.status(404).json({ message: 'Facture non trouvée' });
     }
     
-    // Ne pas envoyer les informations sensibles (seulement ce qui est nécessaire)
     res.json({
       id: invoice.id,
       number: invoice.number,
@@ -80,7 +79,7 @@ router.get('/:id/pdf', async (req, res) => {
     const invoice = await Invoice.findByPk(req.params.id, {
       include: [
         { model: Client, as: 'client' },
-        { model: Payment, include: [{ model: User, as: 'receiver' }] }
+        { model: Payment, as: 'Payments', include: [{ model: User, as: 'receiver' }] }
       ]
     });
     if (!invoice) {

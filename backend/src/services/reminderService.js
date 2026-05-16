@@ -72,7 +72,7 @@ const getReminderEmailContent = (client, invoice, reminderType, company) => {
           <p>Bonjour <strong>${client.name}</strong>,</p>
           <p>${message}</p>
           <div class="invoice-details">
-            <table>
+            </table>
               <tr><td><strong>N° Facture:</strong></td><td>${invoice.number}</td></tr>
               <tr><td><strong>Date d'émission:</strong></td><td>${new Date(invoice.createdAt).toLocaleDateString('fr-FR')}</td></tr>
               <tr><td><strong>Montant dû:</strong></td><td class="total">${invoice.total.toLocaleString()} FCFA</td></tr>
@@ -97,7 +97,6 @@ const getReminderEmailContent = (client, invoice, reminderType, company) => {
  */
 const checkAndCreateReminders = async () => {
   try {
-    // Récupérer toutes les factures impayées (status 'draft')
     const unpaidInvoices = await Invoice.findAll({
       where: { 
         status: 'draft',
@@ -113,14 +112,12 @@ const checkAndCreateReminders = async () => {
       const invoiceDate = new Date(invoice.createdAt);
       const daysOverdue = Math.floor((today - invoiceDate) / (1000 * 60 * 60 * 24));
       
-      // Vérifier les rappels existants
       const existingReminders = await Reminder.findAll({
         where: { invoiceId: invoice.id }
       });
       
       const existingTypes = existingReminders.map(r => r.reminderType);
       
-      // Déterminer quel rappel envoyer
       let reminderType = null;
       if (daysOverdue >= REMINDER_CONFIG.final && !existingTypes.includes('final')) {
         reminderType = 'final';
@@ -162,7 +159,7 @@ const sendPendingReminders = async () => {
         scheduledDate: { [Op.lte]: new Date() }
       },
       include: [
-        { model: Invoice, include: [{ model: Client, as: 'client' }] }
+        { model: Invoice, as: 'invoice', include: [{ model: Client, as: 'client' }] }
       ]
     });
     
@@ -171,7 +168,7 @@ const sendPendingReminders = async () => {
     
     for (const reminder of pendingReminders) {
       try {
-        const invoice = reminder.Invoice;
+        const invoice = reminder.invoice;
         const client = invoice.client;
         
         if (!client || !client.email) {
@@ -181,7 +178,6 @@ const sendPendingReminders = async () => {
           continue;
         }
         
-        // Générer le PDF de la facture
         const pdfBuffer = await generateInvoicePDF(
           invoice, 
           client, 
@@ -190,10 +186,8 @@ const sendPendingReminders = async () => {
           company
         );
         
-        // Préparer et envoyer l'email
         const { subject, html } = getReminderEmailContent(client, invoice, reminder.reminderType, company);
         
-        // Utiliser le service d'email existant
         const emailResult = await sendInvoiceEmail(
           { ...invoice.toJSON(), subject, html },
           client,

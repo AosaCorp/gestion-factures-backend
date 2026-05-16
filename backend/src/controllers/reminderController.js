@@ -7,7 +7,7 @@ const reminderService = require('../services/reminderService');
 exports.getAllReminders = async (req, res) => {
   try {
     const reminders = await Reminder.findAll({
-      include: [{ model: Invoice, attributes: ['id', 'number', 'total', 'status'] }],
+      include: [{ model: Invoice, as: 'invoice', attributes: ['id', 'number', 'total', 'status'] }],
       order: [['createdAt', 'DESC']]
     });
     res.json(reminders);
@@ -24,6 +24,7 @@ exports.getRemindersByInvoice = async (req, res) => {
   try {
     const reminders = await Reminder.findAll({
       where: { invoiceId: req.params.invoiceId },
+      include: [{ model: Invoice, as: 'invoice', attributes: ['id', 'number', 'total', 'status'] }],
       order: [['createdAt', 'DESC']]
     });
     res.json(reminders);
