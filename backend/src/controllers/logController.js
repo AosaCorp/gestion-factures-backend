@@ -1,4 +1,4 @@
-const { Log, User } = require('../models');
+const { Log, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -54,7 +54,7 @@ exports.getLogs = async (req, res) => {
       totalPages: Math.ceil(count / limit)
     });
   } catch (error) {
-    console.error(error);
+    console.error('Erreur getLogs:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
@@ -92,17 +92,23 @@ exports.getLogStats = async (req, res) => {
     res.json({
       total,
       todayCount,
-      actions,
-      entities
+      actions: actions.map(a => ({
+        action: a.action,
+        count: parseInt(a.dataValues.count)
+      })),
+      entities: entities.map(e => ({
+        entityType: e.entityType,
+        count: parseInt(e.dataValues.count)
+      }))
     });
   } catch (error) {
-    console.error(error);
+    console.error('Erreur getLogStats:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
 
 /**
- * Supprimer les logs (admin uniquement)
+ * Supprimer un log
  */
 exports.deleteLog = async (req, res) => {
   try {

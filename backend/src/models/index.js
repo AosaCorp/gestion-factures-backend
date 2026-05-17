@@ -19,8 +19,8 @@ const db = {
   Payment,
   Company,
   Reminder,
-  ApiKey,
-  Log
+  Log,
+  ApiKey
 };
 
 // Associations
@@ -49,9 +49,16 @@ if (Invoice && Reminder) {
   Reminder.belongsTo(Invoice, { foreignKey: 'invoiceId', as: 'invoice' });
 }
 
-if (User && ApiKey) {
-  User.hasMany(ApiKey, { foreignKey: 'userId', as: 'apiKeys' });
-  ApiKey.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+// Association pour Log
+if (Log && User) {
+  Log.belongsTo(User, { as: 'user', foreignKey: 'userId' });
+  User.hasMany(Log, { as: 'logs', foreignKey: 'userId' });
+}
+
+// Association pour ApiKey
+if (ApiKey && User) {
+  ApiKey.belongsTo(User, { as: 'user', foreignKey: 'userId' });
+  User.hasMany(ApiKey, { as: 'apiKeys', foreignKey: 'userId' });
 }
 
 module.exports = db;
