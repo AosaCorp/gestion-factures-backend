@@ -18,13 +18,6 @@ const logRoutes = require('./routes/logs');
 const webhookRoutes = require('./routes/webhooks');
 const backupRoutes = require('./routes/backup');
 const rateLimitRoutes = require('./routes/rateLimit');
-const {
-  apiLimiter,
-  strictLimiter,
-  authLimiter,
-  publicApiLimiter,
-  webhookLimiter
-} = require('./middleware/rateLimiter');
 
 dotenv.config();
 
@@ -53,36 +46,16 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/reminders', reminderRoutes);
-app.use('/api/v1', apiRoutes);  // Route API publique
+app.use('/api/v1', apiRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/rate-limit', rateLimitRoutes);
 
-// Appliquer le rate limiter global à toutes les routes API
-app.use('/api', apiLimiter);
-
-// Limites spécifiques pour certaines routes
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/forgot-password', authLimiter);
-
-// Limite stricte pour les opérations sensibles
-app.use('/api/invoices', strictLimiter);
-app.use('/api/payments', strictLimiter);
-app.use('/api/clients', strictLimiter);
-
-// Limite pour les webhooks
-app.use('/api/webhooks', webhookLimiter);
-
-// Limite pour l'API publique
-app.use('/api/v1', publicApiLimiter);
-
 app.get('/', (req, res) => {
   res.send('API fonctionne');
 });
 
-// Route de test pour l'API publique
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API test OK' });
 });
