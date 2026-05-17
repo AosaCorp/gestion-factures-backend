@@ -63,10 +63,17 @@ const ApiKey = sequelize.define('ApiKey', {
   tableName: 'ApiKeys',
   hooks: {
     beforeCreate: (apiKey) => {
+      // Générer une clé API unique si elle n'existe pas
       if (!apiKey.key) {
-        // Générer une clé API unique
         apiKey.key = `pk_live_${crypto.randomBytes(32).toString('hex')}`;
       }
+    },
+    beforeBulkCreate: (apiKeys) => {
+      apiKeys.forEach(apiKey => {
+        if (!apiKey.key) {
+          apiKey.key = `pk_live_${crypto.randomBytes(32).toString('hex')}`;
+        }
+      });
     }
   }
 });

@@ -1,5 +1,6 @@
-const { Client, Product, Invoice, Payment, ApiKey, User } = require('../models');
+const { Client, Product, Invoice, Payment, ApiKey, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const crypto = require('crypto');
 
 /**
  * Gestion des clés API
@@ -24,10 +25,20 @@ exports.createApiKey = async (req, res) => {
   try {
     const { name, permissions, expiresInDays } = req.body;
     
-    const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000) : null;
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ error: 'Le nom de la clé est requis' });
+    }
+    
+    const expiresAt = expiresInDays && expiresInDays > 0 
+      ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000) 
+      : null;
+    
+    // Générer la clé API
+    const generatedKey = `pk_live_${crypto.randomBytes(32).toString('hex')}`;
     
     const apiKey = await ApiKey.create({
-      name,
+      name: name.trim(),
+      key: generatedKey,
       userId: req.user.id,
       permissions: permissions || {
         invoices: { read: true, write: true },
@@ -42,14 +53,18 @@ exports.createApiKey = async (req, res) => {
     res.status(201).json({
       id: apiKey.id,
       name: apiKey.name,
-      key: apiKey.key, // Renvoyer la clé une seule fois
+      key: apiKey.key,
       permissions: apiKey.permissions,
       expiresAt: apiKey.expiresAt,
       createdAt: apiKey.createdAt
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Erreur création clé API:', error);
+    if (error.name === 'SequelizeValidationError') {
+      res.status(400).json({ error: error.errors[0].message });
+    } else {
+      res.status(500).json({ error: 'Erreur serveur lors de la création de la clé' });
+    }
   }
 };
 
@@ -212,7 +227,6 @@ exports.createInvoice = async (req, res) => {
   try {
     const { clientId, items } = req.body;
     
-    // Vérifier que le client existe
     const client = await Client.findByPk(clientId);
     if (!client) {
       return res.status(404).json({ error: 'Client non trouvé' });
