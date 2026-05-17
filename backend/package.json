@@ -32,6 +32,8 @@
     "sequelize": "^6.37.7",
     "speakeasy": "^2.0.0",
     "sqlite3": "^5.1.7",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0"
   },
   "devDependencies": {

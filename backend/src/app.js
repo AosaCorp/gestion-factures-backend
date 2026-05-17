@@ -18,6 +18,8 @@ const logRoutes = require('./routes/logs');
 const webhookRoutes = require('./routes/webhooks');
 const backupRoutes = require('./routes/backup');
 const rateLimitRoutes = require('./routes/rateLimit');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 dotenv.config();
 
@@ -51,6 +53,7 @@ app.use('/api/logs', logRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/rate-limit', rateLimitRoutes);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/', (req, res) => {
   res.send('API fonctionne');
@@ -58,6 +61,12 @@ app.get('/', (req, res) => {
 
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API test OK' });
+});
+
+// Route JSON de la spécification Swagger
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
 });
 
 module.exports = app;
