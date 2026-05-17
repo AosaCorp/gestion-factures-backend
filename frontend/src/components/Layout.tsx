@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOffline } from '../contexts/OfflineContext';
 import { 
   FiHome, FiUsers, FiPackage, FiFileText, FiLogOut, 
-  FiSettings, FiBarChart2, FiUser, FiRefreshCw, FiKey
+  FiSettings, FiBarChart2, FiUser, FiRefreshCw, FiKey, FiActivity, FiWebhook
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -101,13 +101,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <span className="hidden md:inline">API Keys</span>
                     </Link>
                   </li>
+                  <li>
+                    <Link to="/audit-logs" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                      <FiActivity className="text-lg md:mr-1" />
+                      <span className="hidden md:inline">Audit</span>
+                    </Link>
+                  </li>
+                  <li>
+		  <Link to="/webhooks" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+		    <FiWebhook className="text-lg md:mr-1" />
+		    <span className="hidden md:inline">Webhooks</span>
+		  </Link>
+		</li>
                 </>
               )}
             </ul>
           </nav>
 
-          {/* Zone des actions */}
+          {/* Zone des actions : Synchronisation + Déconnexion */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Bouton de synchronisation */}
             {!isOffline && pendingActionsCount > 0 && (
               <button
                 onClick={handleSync}
@@ -120,6 +133,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </button>
             )}
 
+            {/* Indicateur hors ligne */}
             {isOffline && (
               <div className="flex items-center gap-1 bg-red-100 text-red-600 px-2 py-1 rounded-lg text-xs">
                 <FiRefreshCw className="opacity-50" size={12} />
@@ -127,6 +141,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             )}
 
+            {/* Déconnexion */}
             <button 
               onClick={handleLogout} 
               className="text-gray-700 hover:text-red-600" 
@@ -138,12 +153,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
+      {/* Bannière d'information hors ligne */}
       {isOffline && (
         <div className="bg-yellow-100 border-b border-yellow-200 text-yellow-700 text-xs py-1 px-4 text-center">
           📱 Mode hors ligne - Les modifications seront synchronisées automatiquement au retour de la connexion
         </div>
       )}
 
+      {/* Contenu principal */}
       <main className="flex-1 p-4 md:p-6">
         {children}
       </main>

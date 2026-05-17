@@ -8,6 +8,7 @@ const Company = require('./Company');
 const Reminder = require('./Reminder');
 const Log = require('./Log');
 const ApiKey = require('./ApiKey');
+const Webhook = require('./Webhook');
 
 const db = {
   sequelize,
@@ -20,7 +21,8 @@ const db = {
   Company,
   Reminder,
   Log,
-  ApiKey
+  ApiKey,
+  Webhook
 };
 
 // Associations
