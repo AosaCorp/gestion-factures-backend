@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOffline } from '../contexts/OfflineContext';
 import { 
   FiHome, FiUsers, FiPackage, FiFileText, FiLogOut, 
-  FiSettings, FiBarChart2, FiUser, FiRefreshCw, FiKey, FiActivity, FiWebhook
+  FiSettings, FiBarChart2, FiUser, FiRefreshCw, FiKey, FiActivity, FiLink
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -108,11 +108,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </Link>
                   </li>
                   <li>
-		  <Link to="/webhooks" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
-		    <FiWebhook className="text-lg md:mr-1" />
-		    <span className="hidden md:inline">Webhooks</span>
-		  </Link>
-		</li>
+                    <Link to="/webhooks" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+                      <FiLink className="text-lg md:mr-1" />
+                      <span className="hidden md:inline">Webhooks</span>
+                    </Link>
+                  </li>
                 </>
               )}
             </ul>
