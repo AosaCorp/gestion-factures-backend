@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOffline } from '../contexts/OfflineContext';
 import { 
   FiHome, FiUsers, FiPackage, FiFileText, FiLogOut, 
-  FiSettings, FiBarChart2, FiUser, FiRefreshCw, FiKey, FiActivity, FiDatabase, FiLink
+  FiSettings, FiBarChart2, FiUser, FiRefreshCw, FiKey, FiActivity, FiDatabase, FiShield, FiLink
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -117,6 +117,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 		  <Link to="/backup" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
 		    <FiDatabase className="text-lg md:mr-1" />
 		    <span className="hidden md:inline">Backup</span>
+		  </Link>
+		</li>
+		<li>
+		  <Link to="/rate-limit" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+		    <FiShield className="text-lg md:mr-1" />
+		    <span className="hidden md:inline">Rate Limit</span>
 		  </Link>
 		</li>
                 </>
