@@ -16,6 +16,7 @@ const reminderRoutes = require('./routes/reminders');
 const apiRoutes = require('./routes/api');
 const logRoutes = require('./routes/logs');
 const webhookRoutes = require('./routes/webhooks');
+const backupRoutes = require('./routes/backup');
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use('/api/reminders', reminderRoutes);
 app.use('/api/v1', apiRoutes);  // Route API publique
 app.use('/api/logs', logRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/backup', backupRoutes);
 
 app.get('/', (req, res) => {
   res.send('API fonctionne');

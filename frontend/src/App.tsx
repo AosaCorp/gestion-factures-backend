@@ -24,6 +24,7 @@ import Settings from './pages/Settings';
 import ApiKeys from './pages/ApiKeys';
 import AuditLogs from './pages/AuditLogs';
 import Webhooks from './pages/Webhooks';
+import Backup from './pages/Backup';
 
 const PrivateRoute = ({ children }: { children: React.ReactElement }) => { 
   const { token, loading } = useAuth();
@@ -63,6 +64,7 @@ function App() {
               <Route path="/api-keys" element={<PrivateRoute><Layout><ApiKeys /></Layout></PrivateRoute>} />
               <Route path="/audit-logs" element={<PrivateRoute><Layout><AuditLogs /></Layout></PrivateRoute>} />
               <Route path="/webhooks" element={<PrivateRoute><Layout><Webhooks /></Layout></PrivateRoute>} />
+              <Route path="/backup" element={<PrivateRoute><Layout><Backup /></Layout></PrivateRoute>} />
             </Routes>
           </BrowserRouter>
         </DataCacheProvider>

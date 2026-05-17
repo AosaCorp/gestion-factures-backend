@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const { scheduleBackupJob, runBackupNow } = require('./jobs/backupJob');
 
 const PORT = process.env.PORT || 5001;
 
@@ -13,6 +14,12 @@ const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
   console.log('✅ Dossier uploads créé');
+}
+
+
+// Démarrer le job de sauvegarde (seulement en production)
+if (process.env.NODE_ENV === 'production') {
+  scheduleBackupJob();
 }
 
 async function createAdminIfNotExists() {
@@ -81,6 +88,11 @@ const scheduleReminderJob = () => {
     setInterval(runReminderJob, 24 * 60 * 60 * 1000);
   }, delay);
 };
+
+// Option: créer une sauvegarde initiale au démarrage
+setTimeout(async () => {
+  await runBackupNow();
+}, 60000); // 1 minute après le démarrage
 // =================================================
 
 sequelize.sync()
