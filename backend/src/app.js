@@ -14,6 +14,7 @@ const companyRoutes = require('./routes/company');
 const systemRoutes = require('./routes/system');
 const reminderRoutes = require('./routes/reminders');
 const apiRoutes = require('./routes/api');
+const logRoutes = require('./routes/logs');
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use('/api/company', companyRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/v1', apiRoutes);  // Route API publique
+app.use('/api/logs', logRoutes);
 
 app.get('/', (req, res) => {
   res.send('API fonctionne');
