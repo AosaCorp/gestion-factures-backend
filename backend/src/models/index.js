@@ -25,8 +25,8 @@ const db = {
   Log,
   ApiKey,
   Webhook,
-  DashboardConf,
-  PushSubscription,
+  DashboardConfig,
+  PushSubscription
 };
 
 // Associations
@@ -55,16 +55,19 @@ if (Invoice && Reminder) {
   Reminder.belongsTo(Invoice, { foreignKey: 'invoiceId', as: 'invoice' });
 }
 
-// Association pour Log
 if (Log && User) {
   Log.belongsTo(User, { as: 'user', foreignKey: 'userId' });
   User.hasMany(Log, { as: 'logs', foreignKey: 'userId' });
 }
 
-// Association pour ApiKey
 if (ApiKey && User) {
   ApiKey.belongsTo(User, { as: 'user', foreignKey: 'userId' });
   User.hasMany(ApiKey, { as: 'apiKeys', foreignKey: 'userId' });
+}
+
+if (Webhook && User) {
+  Webhook.belongsTo(User, { as: 'user', foreignKey: 'userId' });
+  User.hasMany(Webhook, { as: 'webhooks', foreignKey: 'userId' });
 }
 
 if (DashboardConfig && User) {
