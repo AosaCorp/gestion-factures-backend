@@ -143,3 +143,116 @@ exports.cleanLogs = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
+
+const exportService = require('../services/exportLogsService');
+
+/**
+ * Exporte les logs au format CSV
+ */
+exports.exportLogsCSV = async (req, res) => {
+  try {
+    const { startDate, endDate, action, entityType, userId } = req.query;
+    const { Op } = require('sequelize');
+    
+    const where = {};
+    if (action) where.action = action;
+    if (entityType) where.entityType = entityType;
+    if (userId) where.userId = parseInt(userId);
+    if (startDate && endDate) {
+      where.createdAt = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    }
+    
+    const logs = await Log.findAll({
+      where,
+      include: [{ model: User, as: 'user', attributes: ['id', 'name', 'email'] }],
+      order: [['createdAt', 'DESC']],
+      limit: 10000
+    });
+    
+    const csv = exportService.exportLogsToCSV(logs);
+    
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=logs_audit.csv');
+    res.send('\uFEFF' + csv); // BOM pour les caractères français
+  } catch (error) {
+    console.error('Erreur export CSV:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'export CSV' });
+  }
+};
+
+/**
+ * Exporte les logs au format JSON
+ */
+exports.exportLogsJSON = async (req, res) => {
+  try {
+    const { startDate, endDate, action, entityType, userId } = req.query;
+    const { Op } = require('sequelize');
+    
+    const where = {};
+    if (action) where.action = action;
+    if (entityType) where.entityType = entityType;
+    if (userId) where.userId = parseInt(userId);
+    if (startDate && endDate) {
+      where.createdAt = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    }
+    
+    const logs = await Log.findAll({
+      where,
+      include: [{ model: User, as: 'user', attributes: ['id', 'name', 'email'] }],
+      order: [['createdAt', 'DESC']],
+      limit: 10000
+    });
+    
+    const json = exportService.exportLogsToJSON(logs);
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename=logs_audit.json');
+    res.send(json);
+  } catch (error) {
+    console.error('Erreur export JSON:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'export JSON' });
+  }
+};
+
+/**
+ * Exporte les logs au format HTML (pour impression/PDF)
+ */
+exports.exportLogsHTML = async (req, res) => {
+  try {
+    const { startDate, endDate, action, entityType, userId } = req.query;
+    const { Op } = require('sequelize');
+    
+    const where = {};
+    if (action) where.action = action;
+    if (entityType) where.entityType = entityType;
+    if (userId) where.userId = parseInt(userId);
+    if (startDate && endDate) {
+      where.createdAt = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    }
+    
+    const [logs, stats] = await Promise.all([
+      Log.findAll({
+        where,
+        include: [{ model: User, as: 'user', attributes: ['id', 'name', 'email'] }],
+        order: [['createdAt', 'DESC']],
+        limit: 10000
+      }),
+      exports.getLogStats({}, { json: () => {} })
+    ]);
+    
+    const html = exportService.exportLogsToHTML(logs, stats);
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', 'attachment; filename=logs_audit.html');
+    res.send(html);
+  } catch (error) {
+    console.error('Erreur export HTML:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'export HTML' });
+  }
+};

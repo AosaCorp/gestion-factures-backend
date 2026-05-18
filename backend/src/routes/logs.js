@@ -4,17 +4,22 @@ const {
   getLogs,
   getLogStats,
   deleteLog,
-  cleanLogs
+  cleanLogs,
+  exportLogsCSV,
+  exportLogsJSON,
+  exportLogsHTML
 } = require('../controllers/logController');
 
 const router = express.Router();
 
-// Toutes les routes nécessitent une authentification et le rôle admin
 router.use(protect);
 router.use(authorize('admin'));
 
 router.get('/', getLogs);
 router.get('/stats', getLogStats);
+router.get('/export/csv', exportLogsCSV);
+router.get('/export/json', exportLogsJSON);
+router.get('/export/html', exportLogsHTML);
 router.delete('/clean', cleanLogs);
 router.delete('/:id', deleteLog);
 

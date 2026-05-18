@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { FiFilter, FiCalendar, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { 
+  FiFilter, FiCalendar, FiTrash2, FiRefreshCw, 
+  FiDownload, FiFileText, FiFile, FiCode 
+} from 'react-icons/fi';
 
 interface Log {
   id: number;
@@ -24,6 +27,7 @@ const AuditLogs: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [exporting, setExporting] = useState<'csv' | 'json' | 'html' | null>(null);
   const [filters, setFilters] = useState({
     action: '',
     entityType: '',
@@ -111,6 +115,38 @@ const AuditLogs: React.FC = () => {
     };
     return labels[action] || action;
   };
+  
+  const handleExport = async (format: 'csv' | 'json' | 'html') => {
+    setExporting(format);
+    try {
+      const params = new URLSearchParams();
+      if (filters.action) params.append('action', filters.action);
+      if (filters.entityType) params.append('entityType', filters.entityType);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      
+      const response = await api.get(`/logs/export/${format}?${params.toString()}`, {
+        responseType: 'blob'
+      });
+      
+      // Créer un lien de téléchargement
+      const url = window.URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `logs_audit.${format === 'csv' ? 'csv' : format === 'json' ? 'json' : 'html'}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success(`Export ${format.toUpperCase()} réussi`);
+    } catch (error) {
+      console.error('Erreur export', error);
+      toast.error('Erreur lors de l\'export');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   if (user?.role !== 'admin') {
     return (
@@ -124,9 +160,37 @@ const AuditLogs: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
         <h1 className="text-2xl md:text-3xl font-bold">Journal d'audit</h1>
         <div className="flex gap-2">
+          <div className="relative group">
+            <button className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">
+              <FiDownload /> Export
+            </button>
+            <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg hidden group-hover:block z-10">
+              <button
+                onClick={() => handleExport('csv')}
+                disabled={exporting === 'csv'}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg flex items-center gap-2 disabled:opacity-50"
+              >
+                <FiFileText /> CSV
+              </button>
+              <button
+                onClick={() => handleExport('json')}
+                disabled={exporting === 'json'}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
+              >
+                <FiCode /> JSON
+              </button>
+              <button
+                onClick={() => handleExport('html')}
+                disabled={exporting === 'html'}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-b-lg flex items-center gap-2 disabled:opacity-50"
+              >
+                <FiFile /> HTML
+              </button>
+            </div>
+          </div>
           <button
             onClick={handleCleanLogs}
             className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 flex items-center gap-2"
