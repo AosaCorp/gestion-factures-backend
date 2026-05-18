@@ -9,6 +9,8 @@ const Reminder = require('./Reminder');
 const Log = require('./Log');
 const ApiKey = require('./ApiKey');
 const Webhook = require('./Webhook');
+const DashboardConfig = require('./DashboardConfig');
+const PushSubscription = require('./PushSubscription');
 
 const db = {
   sequelize,
@@ -22,7 +24,9 @@ const db = {
   Reminder,
   Log,
   ApiKey,
-  Webhook
+  Webhook,
+  DashboardConf,
+  PushSubscription,
 };
 
 // Associations
@@ -61,6 +65,16 @@ if (Log && User) {
 if (ApiKey && User) {
   ApiKey.belongsTo(User, { as: 'user', foreignKey: 'userId' });
   User.hasMany(ApiKey, { as: 'apiKeys', foreignKey: 'userId' });
+}
+
+if (DashboardConfig && User) {
+  DashboardConfig.belongsTo(User, { as: 'user', foreignKey: 'userId' });
+  User.hasOne(DashboardConfig, { as: 'dashboardConfig', foreignKey: 'userId' });
+}
+
+if (PushSubscription && User) {
+  PushSubscription.belongsTo(User, { as: 'user', foreignKey: 'userId' });
+  User.hasMany(PushSubscription, { as: 'subscriptions', foreignKey: 'userId' });
 }
 
 module.exports = db;

@@ -20,6 +20,8 @@ const backupRoutes = require('./routes/backup');
 const rateLimitRoutes = require('./routes/rateLimit');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
+const dashboardRoutes = require('./routes/dashboard');
+const pushRoutes = require('./routes/push');
 
 dotenv.config();
 
@@ -54,6 +56,8 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/rate-limit', rateLimitRoutes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/push', pushRoutes);
 
 app.get('/', (req, res) => {
   res.send('API fonctionne');

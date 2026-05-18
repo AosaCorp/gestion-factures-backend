@@ -5,7 +5,7 @@ import { useOffline } from '../contexts/OfflineContext';
 import { 
   FiHome, FiUsers, FiPackage, FiFileText, FiLogOut, 
   FiSettings, FiBarChart2, FiUser, FiRefreshCw, FiKey, 
-  FiActivity, FiLink, FiDatabase, FiShield, FiBookOpen, FiGrid
+  FiActivity, FiLink, FiDatabase, FiShield, FiBookOpen, FiBell, FiGrid
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -138,6 +138,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <span className="hidden md:inline">Personnaliser</span>
                     </Link>
                   </li>
+                  <li>
+		  <Link to="/notifications" className="flex flex-col items-center md:flex-row text-gray-700 hover:text-blue-600 text-xs md:text-sm">
+		    <FiBell className="text-lg md:mr-1" />
+		    <span className="hidden md:inline">Notifications</span>
+		  </Link>
+		</li>
                 </>
               )}
             </ul>

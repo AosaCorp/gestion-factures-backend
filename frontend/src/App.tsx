@@ -28,6 +28,7 @@ import Backup from './pages/Backup';
 import RateLimitConfig from './pages/RateLimitConfig';
 import ApiDocs from './pages/ApiDocs';
 import DashboardConfig from './pages/DashboardConfig';
+import Notifications from './pages/Notifications';
 
 const PrivateRoute = ({ children }: { children: React.ReactElement }) => { 
   const { token, loading } = useAuth();
@@ -71,6 +72,7 @@ function App() {
               <Route path="/rate-limit" element={<PrivateRoute><Layout><RateLimitConfig /></Layout></PrivateRoute>} />
               <Route path="/api-docs" element={<PrivateRoute><Layout><ApiDocs /></Layout></PrivateRoute>} />
               <Route path="/dashboard-config" element={<PrivateRoute><Layout><DashboardConfig /></Layout></PrivateRoute>} />
+              <Route path="/notifications" element={<PrivateRoute><Layout><Notifications /></Layout></PrivateRoute>} />
             </Routes>
           </BrowserRouter>
         </DataCacheProvider>
