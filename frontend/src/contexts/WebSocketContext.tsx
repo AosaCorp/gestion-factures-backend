@@ -31,15 +31,23 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      console.log('WebSocket: Pas de token, connexion ignorée');
+      return;
+    }
 
+    // Utiliser l'URL du backend depuis l'environnement
     const apiUrl = import.meta.env.VITE_API_URL || 'https://gestion-factures-backend-mvdn.onrender.com';
+    console.log('WebSocket: Connexion à', apiUrl);
+
     const newSocket = io(apiUrl, {
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
 
     newSocket.on('connect', () => {
@@ -47,8 +55,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       setIsConnected(true);
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('🔌 WebSocket déconnecté');
+    newSocket.on('disconnect', (reason) => {
+      console.log('🔌 WebSocket déconnecté:', reason);
+      setIsConnected(false);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Erreur WebSocket:', error.message);
       setIsConnected(false);
     });
 
@@ -58,14 +71,10 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       setLastUpdate(new Date());
     });
 
-    newSocket.on('connect_error', (error) => {
-      console.error('Erreur WebSocket:', error);
-      setIsConnected(false);
-    });
-
     setSocket(newSocket);
 
     return () => {
+      console.log('WebSocket: Nettoyage');
       if (newSocket) {
         newSocket.disconnect();
       }

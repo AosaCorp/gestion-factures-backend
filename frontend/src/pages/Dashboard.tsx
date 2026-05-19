@@ -75,7 +75,7 @@ interface DashboardStats {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { metrics: realtimeMetrics, isRealtime, lastRefresh } = useRealtimeMetrics();
+  const { metrics: realtimeMetrics, isRealtime, lastRefresh, loading: metricsLoading, error: metricsError } = useRealtimeMetrics();
   const [stats, setStats] = useState<DashboardStats>({
     clients: 0,
     invoices: 0,
@@ -316,11 +316,26 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading) {
+  // Gestion des erreurs et fallback
+  if (metricsError && !realtimeMetrics) {
+    console.error('Erreur métriques:', metricsError);
+  }
+
+  // État de chargement avec fallback
+  if (loading || (metricsLoading && !realtimeMetrics && stats.clients === 0)) {
     return (
       <div className="flex flex-col justify-center items-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement du tableau de bord...</p>
+        {metricsError && (
+          <p className="mt-2 text-sm text-red-500">⚠️ {metricsError}</p>
+        )}
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Réessayer
+        </button>
       </div>
     );
   }

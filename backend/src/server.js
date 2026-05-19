@@ -37,24 +37,6 @@ async function createAdminIfNotExists() {
   }
 }
 
-// ========== KEEP-ALIVE POUR RENDER (ÉVITE LA VEILLE) ==========
-const SERVER_URL = process.env.RENDER_URL || 'https://gestion-factures-backend-mvdn.onrender.com';
-
-const keepAlive = () => {
-  const protocol = SERVER_URL.startsWith('https') ? https : http;
-  
-  const request = protocol.get(SERVER_URL, (res) => {
-    console.log(`💓 Keep-alive ping: ${res.statusCode} - ${new Date().toLocaleTimeString()}`);
-    res.resume();
-  });
-  
-  request.on('error', (err) => {
-    console.log(`💓 Keep-alive erreur: ${err.message}`);
-  });
-  
-  request.end();
-};
-
 // ========== JOB DE RAPPELS AUTOMATIQUES ==========
 const scheduleReminderJob = () => {
   const { runReminderJob } = require('./jobs/reminderJob');
@@ -76,15 +58,12 @@ const scheduleReminderJob = () => {
   }, delay);
 };
 
-// Démarrer le serveur APRÈS avoir défini toutes les fonctions
+// ========== CRÉATION DU SERVEUR HTTP ==========
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Serveur démarré sur le port ${PORT} (IPv4)`);
-  if (process.env.NODE_ENV === 'production') {
-    console.log(`💓 Keep-alive pingera ${SERVER_URL} toutes les 14 minutes`);
-  }
 });
 
-// Initialiser Socket.IO APRÈS la création du serveur
+// ========== INITIALISATION WEBSOCKET (APRÈS LE SERVEUR) ==========
 const io = initSocket(server);
 console.log('🔌 WebSocket Server initialisé');
 
@@ -96,7 +75,7 @@ server.on('error', (err) => {
   }
 });
 
-// Synchronisation de la base de données
+// ========== SYNCHRONISATION BASE DE DONNÉES ==========
 sequelize.sync()
   .then(async () => {
     console.log('✅ Base de données synchronisée');
@@ -108,6 +87,7 @@ sequelize.sync()
   })
   .catch(err => console.error('❌ Erreur synchro DB:', err));
 
+// ========== JOBS ET SERVICES ==========
 // Démarrer le job de sauvegarde (seulement en production)
 if (process.env.NODE_ENV === 'production') {
   scheduleBackupJob();
@@ -123,7 +103,24 @@ setTimeout(async () => {
   await runBackupNow();
 }, 60000); // 1 minute après le démarrage
 
-// Keep-alive
+// ========== KEEP-ALIVE POUR RENDER ==========
+const SERVER_URL = process.env.RENDER_URL || 'https://gestion-factures-backend-mvdn.onrender.com';
+
+const keepAlive = () => {
+  const protocol = SERVER_URL.startsWith('https') ? https : http;
+  
+  const request = protocol.get(SERVER_URL, (res) => {
+    console.log(`💓 Keep-alive ping: ${res.statusCode} - ${new Date().toLocaleTimeString()}`);
+    res.resume();
+  });
+  
+  request.on('error', (err) => {
+    console.log(`💓 Keep-alive erreur: ${err.message}`);
+  });
+  
+  request.end();
+};
+
 if (process.env.NODE_ENV === 'production' && SERVER_URL) {
   console.log('🔄 Keep-alive activé - Ping toutes les 14 minutes');
   setTimeout(keepAlive, 60000);
@@ -132,6 +129,7 @@ if (process.env.NODE_ENV === 'production' && SERVER_URL) {
   console.log('ℹ️ Keep-alive désactivé (environnement développement)');
 }
 
+// ========== GESTION ARRÊT PROPRE ==========
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM reçu, arrêt du serveur...');
   server.close(() => {

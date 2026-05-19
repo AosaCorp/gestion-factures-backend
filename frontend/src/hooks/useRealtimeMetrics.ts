@@ -22,12 +22,15 @@ export const useRealtimeMetrics = () => {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Chargement initial via API
   useEffect(() => {
     const fetchInitialMetrics = async () => {
       try {
+        setError(null);
         const response = await api.get('/stats');
+        console.log('Métriques initiales chargées:', response.data);
         setMetrics({
           clients: response.data.clients || 0,
           invoices: response.data.invoices || 0,
@@ -39,8 +42,9 @@ export const useRealtimeMetrics = () => {
           timestamp: new Date().toISOString()
         });
         setLastRefresh(new Date());
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erreur chargement métriques initiales:', error);
+        setError(error.message || 'Erreur de chargement');
       } finally {
         setLoading(false);
       }
@@ -52,8 +56,10 @@ export const useRealtimeMetrics = () => {
   // Mise à jour via WebSocket
   useEffect(() => {
     if (wsMetrics) {
+      console.log('Mise à jour des métriques via WebSocket:', wsMetrics);
       setMetrics(wsMetrics);
       setLastRefresh(new Date());
+      setError(null);
     }
   }, [wsMetrics]);
 
@@ -62,6 +68,7 @@ export const useRealtimeMetrics = () => {
     loading,
     isRealtime: isConnected,
     lastRefresh,
-    lastUpdate
+    lastUpdate,
+    error
   };
 };
