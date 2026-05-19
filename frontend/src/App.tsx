@@ -4,6 +4,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OfflineProvider } from './contexts/OfflineContext';
 import { DataCacheProvider } from './contexts/DataCacheContext';
+import { WebSocketProvider } from './contexts/WebSocketContext';
 import Layout from './components/Layout';
 import OfflineBanner from './components/OfflineBanner';
 import Login from './pages/Login';
@@ -46,6 +47,7 @@ function App() {
         <OfflineProvider>
           <DataCacheProvider>
             <BrowserRouter>
+            <WebSocketProvider>
               <Toaster position="top-right" />
               <OfflineBanner />
               <Routes>
@@ -80,6 +82,7 @@ function App() {
                 <Route path="/stock-alerts" element={<PrivateRoute><Layout><StockAlerts /></Layout></PrivateRoute>} />
                 <Route path="/theme-demo" element={<PrivateRoute><Layout><ThemeDemo /></Layout></PrivateRoute>} />
               </Routes>
+              </WebSocketProvider>
             </BrowserRouter>
           </DataCacheProvider>
         </OfflineProvider>

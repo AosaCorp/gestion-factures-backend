@@ -6,6 +6,8 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 const { scheduleBackupJob, runBackupNow } = require('./jobs/backupJob');
+const { initSocket } = require('./socket');
+const { startMetricsBroadcasting } = require('./services/metricsService');
 
 const PORT = process.env.PORT || 5001;
 
@@ -21,6 +23,11 @@ if (!fs.existsSync(uploadDir)) {
 if (process.env.NODE_ENV === 'production') {
   scheduleBackupJob();
 }
+
+// Démarrer le broadcasting des métriques (seulement en production)
+if (process.env.NODE_ENV === 'production') {
+  startMetricsBroadcasting(30000); // toutes les 30 secondes
+} 
 
 async function createAdminIfNotExists() {
   try {
@@ -58,6 +65,11 @@ const keepAlive = () => {
   
   request.end();
 };
+
+// Initialiser Socket.IO
+const io = initSocket(server);
+console.log('🔌 WebSocket Server initialisé');
+
 
 if (process.env.NODE_ENV === 'production' && SERVER_URL) {
   console.log('🔄 Keep-alive activé - Ping toutes les 14 minutes');

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useRealtimeMetrics } from '../hooks/useRealtimeMetrics';
 import api from '../services/api';
 import { 
   FiUsers, FiFileText, FiCreditCard, FiAlertCircle, 
-  FiTrendingUp, FiPieChart, FiBarChart2, FiCalendar 
+  FiTrendingUp, FiPieChart, FiBarChart2, FiCalendar,
+  FiWifi, FiWifiOff
 } from 'react-icons/fi';
 import { 
   Line, Bar, Doughnut, Radar 
@@ -24,7 +26,6 @@ import {
   Filler
 } from 'chart.js';
 import toast from 'react-hot-toast';
-import StatsWidgets from '../components/StatsWidgets';
 import StockAlertWidget from '../components/widgets/StockAlertWidget';
 
 ChartJS.register(
@@ -74,6 +75,7 @@ interface DashboardStats {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const { metrics: realtimeMetrics, isRealtime, lastRefresh } = useRealtimeMetrics();
   const [stats, setStats] = useState<DashboardStats>({
     clients: 0,
     invoices: 0,
@@ -92,7 +94,17 @@ const Dashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState<'week' | 'month' | 'year'>('month');
-  const [showAdvancedStats, setShowAdvancedStats] = useState(false);
+
+  // Utiliser les métriques en temps réel pour les KPI
+  const displayStats = realtimeMetrics ? {
+    ...stats,
+    clients: realtimeMetrics.clients,
+    invoices: realtimeMetrics.invoices,
+    payments: realtimeMetrics.payments,
+    totalRevenue: realtimeMetrics.totalRevenue,
+    totalPaid: realtimeMetrics.totalPayments,
+    unpaid: realtimeMetrics.unpaid
+  } : stats;
 
   useEffect(() => {
     fetchDashboardData();
@@ -123,7 +135,6 @@ const Dashboard: React.FC = () => {
       const products = productsRes.data.data || productsRes.data;
       const salesReport = salesReportRes.data;
 
-      // Calcul de la croissance mensuelle
       const salesByDate = (salesReport.salesByDate || []).map((d: any) => ({
         date: d.date,
         revenue: parseFloat(d.revenue) || 0,
@@ -137,7 +148,6 @@ const Dashboard: React.FC = () => {
         monthlyGrowth = previousMonth > 0 ? ((currentMonth - previousMonth) / previousMonth) * 100 : 0;
       }
 
-      // Données tendances hebdomadaires
       const weeklyTrend = salesByDate.slice(-7).map((d: any, i: number) => ({
         day: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][i % 7],
         count: 1,
@@ -205,7 +215,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Graphique d'évolution du CA
   const evolutionChartData = {
     labels: stats.salesByDate.map((d) => d.date),
     datasets: [
@@ -236,7 +245,6 @@ const Dashboard: React.FC = () => {
     ],
   };
 
-  // Graphique de répartition des paiements
   const paymentChartData = {
     labels: ['Espèces', 'Orange Money', 'MTN Money'],
     datasets: [
@@ -250,18 +258,17 @@ const Dashboard: React.FC = () => {
     ],
   };
 
-  // Graphique Radar des performances
   const radarChartData = {
     labels: ['Factures', 'Paiements', 'Clients', 'CA', 'Encaissé', 'Produits'],
     datasets: [
       {
         label: 'Performance',
         data: [
-          stats.invoices,
-          stats.payments,
-          stats.clients,
-          Math.min(100, (stats.totalRevenue / 1000000) * 100),
-          Math.min(100, (stats.totalPaid / 1000000) * 100),
+          displayStats.invoices,
+          displayStats.payments,
+          displayStats.clients,
+          Math.min(100, (displayStats.totalRevenue / 1000000) * 100),
+          Math.min(100, (displayStats.totalPaid / 1000000) * 100),
           stats.topProducts.length * 20,
         ],
         backgroundColor: 'rgba(59, 130, 246, 0.2)',
@@ -274,7 +281,6 @@ const Dashboard: React.FC = () => {
     ],
   };
 
-  // Graphique barres des tendances
   const trendChartData = {
     labels: stats.weeklyTrend.map((d) => d.day),
     datasets: [
@@ -295,7 +301,18 @@ const Dashboard: React.FC = () => {
       tooltip: { mode: 'index' as const, intersect: false },
     },
     scales: {
-      y: { beginAtZero: true, ticks: { callback: (value: any) => value.toLocaleString() + ' F' } }
+      y: { 
+        beginAtZero: true, 
+        ticks: { 
+          callback: (value: any) => value.toLocaleString() + ' F',
+          color: '#9ca3af'
+        },
+        grid: { color: 'rgba(156, 163, 175, 0.2)' }
+      },
+      x: {
+        ticks: { color: '#9ca3af' },
+        grid: { color: 'rgba(156, 163, 175, 0.2)' }
+      }
     }
   };
 
@@ -303,80 +320,101 @@ const Dashboard: React.FC = () => {
     return (
       <div className="flex flex-col justify-center items-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Chargement du tableau de bord...</p>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement du tableau de bord...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
-      {/* En-tête avec bouton pour statistiques avancées */}
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Bonjour, {user?.name}</h1>
-          <p className="text-gray-600">Résumé de votre activité</p>
+    <div className="p-4 md:p-6 bg-gray-50 dark:bg-dark-bg min-h-screen">
+      {/* En-tête avec indicateur temps réel */}
+      <div className="mb-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Bonjour, {user?.name}</h1>
+            <p className="text-gray-600 dark:text-gray-400">Résumé de votre activité</p>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              {isRealtime ? (
+                <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                  <FiWifi className="w-3 h-3" /> Temps réel
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-xs text-gray-400">
+                  <FiWifiOff className="w-3 h-3" /> Hors ligne
+                </span>
+              )}
+            </div>
+            {lastRefresh && (
+              <span className="text-xs text-gray-400">
+                Dernière mise à jour: {lastRefresh.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
         </div>
-        <button
-          onClick={() => setShowAdvancedStats(!showAdvancedStats)}
-          className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-            showAdvancedStats 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          <FiBarChart2 />
-          {showAdvancedStats ? 'Masquer stats avancées' : 'Statistiques avancées'}
-        </button>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards avec métriques en temps réel */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <FiUsers className="text-blue-500 text-2xl" />
-            <span className="text-xs text-gray-400">Clients</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">Clients</span>
           </div>
-          <p className="text-2xl font-bold mt-2">{stats.clients}</p>
+          <p className="text-2xl font-bold mt-2 text-gray-900 dark:text-white">{displayStats.clients}</p>
+          {realtimeMetrics?.trends?.newClients !== undefined && (
+            <p className="text-xs text-green-600 mt-1">+{realtimeMetrics.trends.newClients} aujourd'hui</p>
+          )}
         </div>
         
-        <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <FiFileText className="text-green-500 text-2xl" />
-            <span className="text-xs text-gray-400">Factures</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">Factures</span>
           </div>
-          <p className="text-2xl font-bold mt-2">{stats.invoices}</p>
+          <p className="text-2xl font-bold mt-2 text-gray-900 dark:text-white">{displayStats.invoices}</p>
+          {realtimeMetrics?.trends?.newInvoices !== undefined && realtimeMetrics.trends.newInvoices > 0 && (
+            <p className="text-xs text-green-600 mt-1">+{realtimeMetrics.trends.newInvoices} dernière heure</p>
+          )}
         </div>
         
-        <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <FiCreditCard className="text-yellow-500 text-2xl" />
-            <span className="text-xs text-gray-400">Paiements</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">Paiements</span>
           </div>
-          <p className="text-2xl font-bold mt-2">{stats.payments}</p>
+          <p className="text-2xl font-bold mt-2 text-gray-900 dark:text-white">{displayStats.payments}</p>
+          {realtimeMetrics?.trends?.newPayments !== undefined && realtimeMetrics.trends.newPayments > 0 && (
+            <p className="text-xs text-green-600 mt-1">+{realtimeMetrics.trends.newPayments} dernière heure</p>
+          )}
         </div>
         
-        <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <FiTrendingUp className="text-purple-500 text-2xl" />
-            <span className="text-xs text-gray-400">CA total</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">CA total</span>
           </div>
-          <p className="text-xl font-bold mt-2">{stats.totalRevenue.toLocaleString()} F</p>
+          <p className="text-xl font-bold mt-2 text-gray-900 dark:text-white">{displayStats.totalRevenue.toLocaleString()} F</p>
+          {realtimeMetrics?.trends?.newRevenue !== undefined && realtimeMetrics.trends.newRevenue > 0 && (
+            <p className="text-xs text-green-600 mt-1">+{realtimeMetrics.trends.newRevenue.toLocaleString()} F (heure)</p>
+          )}
         </div>
         
-        <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <FiPieChart className="text-indigo-500 text-2xl" />
-            <span className="text-xs text-gray-400">Encaissé</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">Encaissé</span>
           </div>
-          <p className="text-xl font-bold mt-2">{stats.totalPaid.toLocaleString()} F</p>
+          <p className="text-xl font-bold mt-2 text-gray-900 dark:text-white">{displayStats.totalPaid.toLocaleString()} F</p>
         </div>
         
-        <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <FiAlertCircle className="text-red-500 text-2xl" />
-            <span className="text-xs text-gray-400">Impayés</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">Impayés</span>
           </div>
-          <p className="text-xl font-bold mt-2">{stats.unpaid.toLocaleString()} F</p>
+          <p className="text-xl font-bold mt-2 text-gray-900 dark:text-white">{displayStats.unpaid.toLocaleString()} F</p>
         </div>
       </div>
 
@@ -384,19 +422,19 @@ const Dashboard: React.FC = () => {
       <div className="flex justify-end gap-2 mb-4">
         <button 
           onClick={() => setChartPeriod('week')}
-          className={`px-3 py-1 rounded text-sm ${chartPeriod === 'week' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          className={`px-3 py-1 rounded text-sm ${chartPeriod === 'week' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
         >
           <FiCalendar className="inline mr-1" size={14} /> Semaine
         </button>
         <button 
           onClick={() => setChartPeriod('month')}
-          className={`px-3 py-1 rounded text-sm ${chartPeriod === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          className={`px-3 py-1 rounded text-sm ${chartPeriod === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
         >
           Mois
         </button>
         <button 
           onClick={() => setChartPeriod('year')}
-          className={`px-3 py-1 rounded text-sm ${chartPeriod === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          className={`px-3 py-1 rounded text-sm ${chartPeriod === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
         >
           Année
         </button>
@@ -404,37 +442,37 @@ const Dashboard: React.FC = () => {
 
       {/* Graphiques principaux */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow p-4">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Évolution du chiffre d'affaires</h2>
-            <FiBarChart2 className="text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Évolution du chiffre d'affaires</h2>
+            <FiBarChart2 className="text-gray-400 dark:text-gray-500" />
           </div>
           <div style={{ height: '280px' }}>
             {stats.salesByDate.length ? (
               <Line data={evolutionChartData} options={chartOptions} />
             ) : (
-              <p className="text-gray-500 text-center py-20">Aucune donnée disponible</p>
+              <p className="text-gray-500 dark:text-gray-400 text-center py-20">Aucune donnée disponible</p>
             )}
           </div>
           {stats.monthlyGrowth !== 0 && (
             <div className="mt-3 text-center">
-              <span className={`text-sm ${stats.monthlyGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`text-sm ${stats.monthlyGrowth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 {stats.monthlyGrowth >= 0 ? '↑' : '↓'} {Math.abs(stats.monthlyGrowth).toFixed(1)}% par rapport au mois dernier
               </span>
             </div>
           )}
         </div>
         
-        <div className="bg-white rounded-xl shadow p-4">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Répartition des paiements</h2>
-            <FiPieChart className="text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Répartition des paiements</h2>
+            <FiPieChart className="text-gray-400 dark:text-gray-500" />
           </div>
           <div style={{ height: '280px' }}>
             {stats.paymentMethods.cash + stats.paymentMethods.orange_money + stats.paymentMethods.mtn_money > 0 ? (
               <Doughnut data={paymentChartData} options={{ responsive: true, maintainAspectRatio: false }} />
             ) : (
-              <p className="text-gray-500 text-center py-20">Aucun paiement enregistré</p>
+              <p className="text-gray-500 dark:text-gray-400 text-center py-20">Aucun paiement enregistré</p>
             )}
           </div>
         </div>
@@ -442,104 +480,113 @@ const Dashboard: React.FC = () => {
 
       {/* Graphiques secondaires */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow p-4">
-          <h2 className="text-lg font-semibold mb-4">Performance globale</h2>
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4">
+          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Performance globale</h2>
           <div style={{ height: '250px' }}>
             <Radar data={radarChartData} options={{ responsive: true, maintainAspectRatio: false }} />
           </div>
         </div>
         
-        <div className="bg-white rounded-xl shadow p-4">
-          <h2 className="text-lg font-semibold mb-4">Tendance de la semaine</h2>
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4">
+          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Tendance de la semaine</h2>
           <div style={{ height: '250px' }}>
             {stats.weeklyTrend.some(d => d.amount > 0) ? (
               <Bar data={trendChartData} options={chartOptions} />
             ) : (
-              <p className="text-gray-500 text-center py-20">Aucune donnée cette semaine</p>
+              <p className="text-gray-500 dark:text-gray-400 text-center py-20">Aucune donnée cette semaine</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Alertes et Top produits */}
+      {/* Alertes, Top produits et Stock */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow p-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-3">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-3 text-gray-900 dark:text-white">
             <FiAlertCircle className="text-red-500" /> Alertes
-             <StockAlertWidget />
           </h2>
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+            <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/30 rounded-lg">
               <div>
-                <p className="font-medium">{stats.unpaid.toLocaleString()} FCFA d'impayés</p>
-                <p className="text-xs text-gray-500">Sur toutes les factures</p>
+                <p className="font-medium text-gray-900 dark:text-white">{displayStats.unpaid.toLocaleString()} FCFA d'impayés</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Sur toutes les factures</p>
               </div>
-              <Link to="/invoices?status=draft" className="text-blue-600 text-sm hover:underline">Voir</Link>
+              <Link to="/invoices?status=draft" className="text-blue-600 dark:text-blue-400 text-sm hover:underline">Voir</Link>
             </div>
-            <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+            <div className="flex justify-between items-center p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
               <div>
-                <p className="font-medium">{stats.pendingInvoices} factures en attente</p>
-                <p className="text-xs text-gray-500">À traiter</p>
+                <p className="font-medium text-gray-900 dark:text-white">{stats.pendingInvoices} factures en attente</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">À traiter</p>
               </div>
-              <Link to="/invoices?status=draft" className="text-blue-600 text-sm hover:underline">Voir</Link>
+              <Link to="/invoices?status=draft" className="text-blue-600 dark:text-blue-400 text-sm hover:underline">Voir</Link>
             </div>
           </div>
         </div>
         
-        <div className="bg-white rounded-xl shadow p-4 lg:col-span-2">
-          <h2 className="text-lg font-semibold mb-3">🏆 Top produits</h2>
+        <StockAlertWidget />
+      </div>
+
+      {/* Top produits */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4 lg:col-span-2">
+          <h2 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">🏆 Top produits</h2>
           {stats.topProducts.length ? (
             <div className="space-y-2">
               {stats.topProducts.map((product, idx) => (
-                <div key={idx} className="flex justify-between items-center p-3 border-b hover:bg-gray-50 rounded-lg">
+                <div key={idx} className="flex justify-between items-center p-3 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <span className={`w-6 h-6 flex items-center justify-center rounded-full ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'} text-sm font-bold`}>
+                    <span className={`w-6 h-6 flex items-center justify-center rounded-full ${
+                      idx === 0 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300' : 
+                      idx === 1 ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300' : 
+                      'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                    } text-sm font-bold`}>
                       {idx + 1}
                     </span>
-                    <span className="font-medium">{product.name}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{product.name}</span>
                   </div>
-                  <span className="font-bold text-blue-600">{product.price.toLocaleString()} FCFA</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{product.price.toLocaleString()} FCFA</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-10">Aucun produit</p>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-10">Aucun produit</p>
           )}
         </div>
       </div>
 
       {/* Dernières factures */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <h2 className="text-lg font-semibold mb-3">📄 Dernières factures</h2>
+      <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4">
+        <h2 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">📄 Dernières factures</h2>
         <div className="overflow-x-auto">
           <table className="min-w-[640px] w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="p-3 text-left">N°</th>
-                <th className="p-3 text-left">Client</th>
-                <th className="p-3 text-left">Date</th>
-                <th className="p-3 text-right">Montant</th>
-                <th className="p-3 text-left">Statut</th>
-                <th className="p-3 text-left">Action</th>
+                <th className="p-3 text-left text-gray-700 dark:text-gray-300">N°</th>
+                <th className="p-3 text-left text-gray-700 dark:text-gray-300">Client</th>
+                <th className="p-3 text-left text-gray-700 dark:text-gray-300">Date</th>
+                <th className="p-3 text-right text-gray-700 dark:text-gray-300">Montant</th>
+                <th className="p-3 text-left text-gray-700 dark:text-gray-300">Statut</th>
+                <th className="p-3 text-left text-gray-700 dark:text-gray-300">Action</th>
               </tr>
             </thead>
             <tbody>
               {stats.latestInvoices.map((inv) => (
-                <tr key={inv.id} className="border-t hover:bg-gray-50">
-                  <td className="p-3 font-mono font-medium">{inv.number}</td>
-                  <td className="p-3">{inv.clientName}</td>
-                  <td className="p-3">{new Date(inv.date).toLocaleDateString('fr-FR')}</td>
-                  <td className="p-3 text-right font-medium">{inv.total.toLocaleString()} FCFA</td>
+                <tr key={inv.id} className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <td className="p-3 font-mono font-medium text-gray-900 dark:text-white">{inv.number}</td>
+                  <td className="p-3 text-gray-600 dark:text-gray-400">{inv.clientName}</td>
+                  <td className="p-3 text-gray-600 dark:text-gray-400">{new Date(inv.date).toLocaleDateString('fr-FR')}</td>
+                  <td className="p-3 text-right font-medium text-gray-900 dark:text-white">{inv.total.toLocaleString()} FCFA</td>
                   <td className="p-3">
                     <span className={`px-2 py-1 text-xs rounded-full ${
-                      inv.status === 'paid' ? 'bg-green-100 text-green-800' :
-                      inv.status === 'draft' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                      inv.status === 'paid' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                      inv.status === 'draft' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' : 
+                      'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
                     }`}>
                       {inv.status === 'paid' ? 'Payée' : inv.status === 'draft' ? 'En attente' : 'Annulée'}
                     </span>
                   </td>
                   <td className="p-3">
-                    <Link to={`/invoices/${inv.id}`} className="text-blue-600 text-sm hover:underline">
+                    <Link to={`/invoices/${inv.id}`} className="text-blue-600 dark:text-blue-400 text-sm hover:underline">
                       Voir →
                     </Link>
                   </td>
@@ -549,16 +596,9 @@ const Dashboard: React.FC = () => {
           </table>
         </div>
         <div className="mt-4 text-right">
-          <Link to="/invoices" className="text-blue-600 text-sm hover:underline">Voir toutes les factures →</Link>
+          <Link to="/invoices" className="text-blue-600 dark:text-blue-400 text-sm hover:underline">Voir toutes les factures →</Link>
         </div>
       </div>
-
-      {/* SECTION STATISTIQUES AVANCÉES - AJOUTÉE */}
-      {showAdvancedStats && (
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <StatsWidgets />
-        </div>
-      )}
     </div>
   );
 };
