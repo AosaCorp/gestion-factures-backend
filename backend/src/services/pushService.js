@@ -1,17 +1,28 @@
 const webpush = require('web-push');
 const { PushSubscription } = require('../models');
 
-// Configuration VAPID
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+// Configuration VAPID (uniquement si les clés sont définies)
+const publicKey = process.env.VAPID_PUBLIC_KEY;
+const privateKey = process.env.VAPID_PRIVATE_KEY;
+const subject = process.env.VAPID_SUBJECT || 'mailto:admin@example.com';
+
+if (publicKey && privateKey) {
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  console.log('✅ Notifications push configurées');
+} else {
+  console.log('⚠️ Notifications push désactivées - Clés VAPID manquantes');
+}
 
 /**
  * Envoie une notification push à un utilisateur spécifique
  */
 const sendNotificationToUser = async (userId, title, body, data = {}, icon = '/logo.png') => {
+  // Vérifier si les notifications sont configurées
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    console.log('⚠️ Notifications push non configurées - Envoi ignoré');
+    return { success: false, message: 'Notifications non configurées' };
+  }
+
   try {
     const subscriptions = await PushSubscription.findAll({
       where: { userId, active: true }
@@ -43,7 +54,6 @@ const sendNotificationToUser = async (userId, title, body, data = {}, icon = '/l
         results.push({ success: true, endpoint: subscription.endpoint });
       } catch (error) {
         console.error('Erreur envoi notification:', error);
-        // Si la subscription est expirée, la désactiver
         if (error.statusCode === 410) {
           await subscription.update({ active: false });
         }
@@ -62,6 +72,11 @@ const sendNotificationToUser = async (userId, title, body, data = {}, icon = '/l
  * Envoie une notification à tous les utilisateurs (admin seulement)
  */
 const sendNotificationToAll = async (title, body, data = {}, icon = '/logo.png') => {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    console.log('⚠️ Notifications push non configurées - Envoi ignoré');
+    return { success: false, message: 'Notifications non configurées' };
+  }
+
   try {
     const subscriptions = await PushSubscription.findAll({ where: { active: true } });
     
@@ -104,7 +119,6 @@ const sendNotificationToAll = async (title, body, data = {}, icon = '/logo.png')
  */
 const saveSubscription = async (userId, subscription, userAgent) => {
   try {
-    // Vérifier si l'abonnement existe déjà
     const existing = await PushSubscription.findOne({
       where: { endpoint: subscription.endpoint }
     });
