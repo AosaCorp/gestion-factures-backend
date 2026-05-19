@@ -363,9 +363,6 @@ const Dashboard: React.FC = () => {
             <span className="text-xs text-gray-400 dark:text-gray-500">Clients</span>
           </div>
           <p className="text-2xl font-bold mt-2 text-gray-900 dark:text-white">{displayStats.clients}</p>
-          {realtimeMetrics?.trends?.newClients !== undefined && (
-            <p className="text-xs text-green-600 mt-1">+{realtimeMetrics.trends.newClients} aujourd'hui</p>
-          )}
         </div>
         
         <div className="bg-white dark:bg-dark-card rounded-xl shadow p-4 hover:shadow-lg transition-shadow">
