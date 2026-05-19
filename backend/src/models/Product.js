@@ -35,6 +35,16 @@ const Product = sequelize.define('Product', {
   stock: {
     type: DataTypes.INTEGER,
     defaultValue: 0
+  },
+  minStock: {
+    type: DataTypes.INTEGER,
+    defaultValue: 5,
+    comment: 'Seuil d\'alerte pour le stock bas'
+  },
+  alertSent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: 'Alerte de stock bas déjà envoyée'
   }
 }, {
   timestamps: true

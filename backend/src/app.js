@@ -22,6 +22,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const dashboardRoutes = require('./routes/dashboard');
 const pushRoutes = require('./routes/push');
+const stockAlertRoutes = require('./routes/stockAlerts');
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use('/api/rate-limit', rateLimitRoutes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/stock-alerts', stockAlertRoutes);
 
 app.get('/', (req, res) => {
   res.send('API fonctionne');

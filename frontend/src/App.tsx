@@ -29,6 +29,7 @@ import RateLimitConfig from './pages/RateLimitConfig';
 import ApiDocs from './pages/ApiDocs';
 import DashboardConfig from './pages/DashboardConfig';
 import Notifications from './pages/Notifications';
+import StockAlerts from './pages/StockAlerts';
 
 const PrivateRoute = ({ children }: { children: React.ReactElement }) => { 
   const { token, loading } = useAuth();
@@ -73,6 +74,7 @@ function App() {
               <Route path="/api-docs" element={<PrivateRoute><Layout><ApiDocs /></Layout></PrivateRoute>} />
               <Route path="/dashboard-config" element={<PrivateRoute><Layout><DashboardConfig /></Layout></PrivateRoute>} />
               <Route path="/notifications" element={<PrivateRoute><Layout><Notifications /></Layout></PrivateRoute>} />
+              <Route path="/stock-alerts" element={<PrivateRoute><Layout><StockAlerts /></Layout></PrivateRoute>} />
             </Routes>
           </BrowserRouter>
         </DataCacheProvider>
