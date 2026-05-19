@@ -18,17 +18,6 @@ if (!fs.existsSync(uploadDir)) {
   console.log('✅ Dossier uploads créé');
 }
 
-
-// Démarrer le job de sauvegarde (seulement en production)
-if (process.env.NODE_ENV === 'production') {
-  scheduleBackupJob();
-}
-
-// Démarrer le broadcasting des métriques (seulement en production)
-if (process.env.NODE_ENV === 'production') {
-  startMetricsBroadcasting(30000); // toutes les 30 secondes
-} 
-
 async function createAdminIfNotExists() {
   try {
     const adminExists = await User.findOne({ where: { role: 'admin' } });
@@ -66,20 +55,6 @@ const keepAlive = () => {
   request.end();
 };
 
-// Initialiser Socket.IO
-const io = initSocket(server);
-console.log('🔌 WebSocket Server initialisé');
-
-
-if (process.env.NODE_ENV === 'production' && SERVER_URL) {
-  console.log('🔄 Keep-alive activé - Ping toutes les 14 minutes');
-  setTimeout(keepAlive, 60000);
-  setInterval(keepAlive, 14 * 60 * 1000);
-} else {
-  console.log('ℹ️ Keep-alive désactivé (environnement développement)');
-}
-// ============================================================
-
 // ========== JOB DE RAPPELS AUTOMATIQUES ==========
 const scheduleReminderJob = () => {
   const { runReminderJob } = require('./jobs/reminderJob');
@@ -101,12 +76,27 @@ const scheduleReminderJob = () => {
   }, delay);
 };
 
-// Option: créer une sauvegarde initiale au démarrage
-setTimeout(async () => {
-  await runBackupNow();
-}, 60000); // 1 minute après le démarrage
-// =================================================
+// Démarrer le serveur APRÈS avoir défini toutes les fonctions
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Serveur démarré sur le port ${PORT} (IPv4)`);
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`💓 Keep-alive pingera ${SERVER_URL} toutes les 14 minutes`);
+  }
+});
 
+// Initialiser Socket.IO APRÈS la création du serveur
+const io = initSocket(server);
+console.log('🔌 WebSocket Server initialisé');
+
+server.on('error', (err) => {
+  console.error('❌ Erreur serveur:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Le port ${PORT} est déjà utilisé. Arrêtez l'autre processus ou changez de port.`);
+    process.exit(1);
+  }
+});
+
+// Synchronisation de la base de données
 sequelize.sync()
   .then(async () => {
     console.log('✅ Base de données synchronisée');
@@ -118,20 +108,29 @@ sequelize.sync()
   })
   .catch(err => console.error('❌ Erreur synchro DB:', err));
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Serveur démarré sur le port ${PORT} (IPv4)`);
-  if (process.env.NODE_ENV === 'production') {
-    console.log(`💓 Keep-alive pingera ${SERVER_URL} toutes les 14 minutes`);
-  }
-});
+// Démarrer le job de sauvegarde (seulement en production)
+if (process.env.NODE_ENV === 'production') {
+  scheduleBackupJob();
+}
 
-server.on('error', (err) => {
-  console.error('❌ Erreur serveur:', err);
-  if (err.code === 'EADDRINUSE') {
-    console.error(`Le port ${PORT} est déjà utilisé. Arrêtez l'autre processus ou changez de port.`);
-    process.exit(1);
-  }
-});
+// Démarrer le broadcasting des métriques (seulement en production)
+if (process.env.NODE_ENV === 'production') {
+  startMetricsBroadcasting(30000); // toutes les 30 secondes
+}
+
+// Option: créer une sauvegarde initiale au démarrage
+setTimeout(async () => {
+  await runBackupNow();
+}, 60000); // 1 minute après le démarrage
+
+// Keep-alive
+if (process.env.NODE_ENV === 'production' && SERVER_URL) {
+  console.log('🔄 Keep-alive activé - Ping toutes les 14 minutes');
+  setTimeout(keepAlive, 60000);
+  setInterval(keepAlive, 14 * 60 * 1000);
+} else {
+  console.log('ℹ️ Keep-alive désactivé (environnement développement)');
+}
 
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM reçu, arrêt du serveur...');
