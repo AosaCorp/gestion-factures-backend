@@ -32,17 +32,16 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
 
   useEffect(() => {
     if (!token) {
-      console.log('WebSocket: Pas de token, connexion ignorée');
+      console.log('🔌 WebSocket: Pas de token, connexion ignorée');
       return;
     }
 
-    // Utiliser l'URL du backend depuis l'environnement
     const apiUrl = import.meta.env.VITE_API_URL || 'https://gestion-factures-backend-mvdn.onrender.com';
-    console.log('WebSocket: Connexion à', apiUrl);
+    console.log('🔌 WebSocket: Connexion à', apiUrl);
 
     const newSocket = io(apiUrl, {
       auth: { token },
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -61,12 +60,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('Erreur WebSocket:', error.message);
+      console.error('🔌 WebSocket erreur de connexion:', error.message);
       setIsConnected(false);
     });
 
     newSocket.on('metrics_update', (data) => {
-      console.log('📊 Métriques reçues:', data);
+      console.log('📊 WebSocket métriques reçues:', data);
       setMetrics(data);
       setLastUpdate(new Date());
     });
@@ -74,7 +73,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     setSocket(newSocket);
 
     return () => {
-      console.log('WebSocket: Nettoyage');
+      console.log('🔌 WebSocket nettoyage');
       if (newSocket) {
         newSocket.disconnect();
       }

@@ -94,6 +94,21 @@ const Dashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState<'week' | 'month' | 'year'>('month');
+  const [loadTimeout, setLoadTimeout] = useState(false);
+
+  // Timeout de secours pour éviter le chargement infini (10 secondes)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (loading && !realtimeMetrics && stats.clients === 0) {
+        console.log('⚠️ Timeout de chargement (10s), arrêt du loading');
+        setLoadTimeout(true);
+        setLoading(false);
+        toast.error('Le chargement prend trop de temps. Vérifiez votre connexion.');
+      }
+    }, 10000);
+
+    return () => clearTimeout(timeoutId);
+  }, [loading, realtimeMetrics, stats.clients]);
 
   // Utiliser les métriques en temps réel pour les KPI
   const displayStats = realtimeMetrics ? {
@@ -113,6 +128,7 @@ const Dashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setLoadTimeout(false);
       const [
         statsRes,
         invoicesRes,
@@ -321,8 +337,8 @@ const Dashboard: React.FC = () => {
     console.error('Erreur métriques:', metricsError);
   }
 
-  // État de chargement avec fallback
-  if (loading || (metricsLoading && !realtimeMetrics && stats.clients === 0)) {
+  // État de chargement avec timeout
+  if ((loading || (metricsLoading && !realtimeMetrics && stats.clients === 0)) && !loadTimeout) {
     return (
       <div className="flex flex-col justify-center items-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -330,12 +346,28 @@ const Dashboard: React.FC = () => {
         {metricsError && (
           <p className="mt-2 text-sm text-red-500">⚠️ {metricsError}</p>
         )}
-        <button 
-          onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Réessayer
-        </button>
+        <p className="mt-2 text-xs text-gray-400">Si le chargement prend trop de temps, vérifiez votre connexion</p>
+      </div>
+    );
+  }
+
+  // Si timeout dépassé, afficher un message d'erreur
+  if (loadTimeout && stats.clients === 0) {
+    return (
+      <div className="flex flex-col justify-center items-center h-96">
+        <div className="text-center">
+          <FiWifiOff className="text-gray-400 text-5xl mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Problème de connexion</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            Impossible de charger les données. Vérifiez votre connexion internet.
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Réessayer
+          </button>
+        </div>
       </div>
     );
   }

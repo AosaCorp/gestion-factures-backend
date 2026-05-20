@@ -29,8 +29,9 @@ export const useRealtimeMetrics = () => {
     const fetchInitialMetrics = async () => {
       try {
         setError(null);
+        console.log('📊 Chargement des métriques initiales...');
         const response = await api.get('/stats');
-        console.log('Métriques initiales chargées:', response.data);
+        console.log('📊 Métriques initiales reçues:', response.data);
         setMetrics({
           clients: response.data.clients || 0,
           invoices: response.data.invoices || 0,
@@ -43,8 +44,19 @@ export const useRealtimeMetrics = () => {
         });
         setLastRefresh(new Date());
       } catch (error: any) {
-        console.error('Erreur chargement métriques initiales:', error);
+        console.error('❌ Erreur chargement métriques:', error);
         setError(error.message || 'Erreur de chargement');
+        // Fallback avec des valeurs par défaut
+        setMetrics({
+          clients: 0,
+          invoices: 0,
+          payments: 0,
+          totalRevenue: 0,
+          totalPayments: 0,
+          unpaid: 0,
+          trends: { newInvoices: 0, newPayments: 0, newRevenue: 0 },
+          timestamp: new Date().toISOString()
+        });
       } finally {
         setLoading(false);
       }
@@ -56,8 +68,12 @@ export const useRealtimeMetrics = () => {
   // Mise à jour via WebSocket
   useEffect(() => {
     if (wsMetrics) {
-      console.log('Mise à jour des métriques via WebSocket:', wsMetrics);
-      setMetrics(wsMetrics);
+      console.log('📊 Mise à jour temps réel:', wsMetrics);
+      setMetrics(prev => ({
+        ...prev,
+        ...wsMetrics,
+        trends: wsMetrics.trends || { newInvoices: 0, newPayments: 0, newRevenue: 0 }
+      }));
       setLastRefresh(new Date());
       setError(null);
     }
