@@ -23,6 +23,8 @@ const swaggerSpec = require('./config/swagger');
 const dashboardRoutes = require('./routes/dashboard');
 const pushRoutes = require('./routes/push');
 const stockAlertRoutes = require('./routes/stockAlerts');
+const monitoringRoutes = require('./routes/monitoring');
+const { performanceMonitor, monitoringHeaders } = require('./middleware/monitoring');
 
 dotenv.config();
 
@@ -38,6 +40,10 @@ app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
+
+// Appliquer le monitoring à toutes les routes
+app.use(monitoringHeaders);
+app.use(performanceMonitor);
 
 app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
@@ -60,6 +66,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/stock-alerts', stockAlertRoutes);
+app.use('/api/monitoring', monitoringRoutes);
 
 app.get('/', (req, res) => {
   res.send('API fonctionne');

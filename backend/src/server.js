@@ -8,6 +8,7 @@ const http = require('http');
 const { scheduleBackupJob, runBackupNow } = require('./jobs/backupJob');
 const { initSocket } = require('./socket');
 const { startMetricsBroadcasting } = require('./services/metricsService');
+const { updateMetricsWebSocket } = require('./middleware/monitoring');
 
 const PORT = process.env.PORT || 5001;
 
@@ -74,6 +75,9 @@ server.on('error', (err) => {
     process.exit(1);
   }
 });
+
+// Démarrer le monitoring WebSocket
+updateMetricsWebSocket(io);
 
 // ========== SYNCHRONISATION BASE DE DONNÉES ==========
 sequelize.sync()

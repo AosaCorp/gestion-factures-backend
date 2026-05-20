@@ -33,6 +33,7 @@ import DashboardConfig from './pages/DashboardConfig';
 import Notifications from './pages/Notifications';
 import StockAlerts from './pages/StockAlerts';
 import ThemeDemo from './pages/ThemeDemo';
+import Monitoring from './pages/Monitoring';
 
 const PrivateRoute = ({ children }: { children: React.ReactElement }) => { 
   const { token, loading } = useAuth();
@@ -81,6 +82,7 @@ function App() {
                 <Route path="/notifications" element={<PrivateRoute><Layout><Notifications /></Layout></PrivateRoute>} />
                 <Route path="/stock-alerts" element={<PrivateRoute><Layout><StockAlerts /></Layout></PrivateRoute>} />
                 <Route path="/theme-demo" element={<PrivateRoute><Layout><ThemeDemo /></Layout></PrivateRoute>} />
+                <Route path="/monitoring" element={<PrivateRoute><Layout><Monitoring /></Layout></PrivateRoute>} />
               </Routes>
               </WebSocketProvider>
             </BrowserRouter>
