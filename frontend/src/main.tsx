@@ -4,24 +4,22 @@ import App from './App';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
 
-// Enregistrement du service worker pour PWA
-if ('serviceWorker' in navigator) {
+// Désactiver l'enregistrement du Service Worker en développement
+const isDevelopment = import.meta.env.DEV;
+
+if ('serviceWorker' in navigator && !isDevelopment) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(registration => {
         console.log('✅ Service Worker enregistré:', registration);
         
-        // Vérifier les mises à jour
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 console.log('🔄 Nouvelle version disponible');
-                // Afficher une notification
-                if (confirm('Une nouvelle version est disponible. Rafraîchir ?')) {
-                  window.location.reload();
-                }
+                // Ne pas afficher la popup automatiquement
               }
             });
           }
@@ -31,6 +29,8 @@ if ('serviceWorker' in navigator) {
         console.log('❌ Erreur Service Worker:', error);
       });
   });
+} else if (isDevelopment) {
+  console.log('ℹ️ Service Worker désactivé en développement');
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
