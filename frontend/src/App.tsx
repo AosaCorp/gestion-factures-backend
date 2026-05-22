@@ -34,6 +34,7 @@ import Notifications from './pages/Notifications';
 import StockAlerts from './pages/StockAlerts';
 import ThemeDemo from './pages/ThemeDemo';
 import Monitoring from './pages/Monitoring';
+import UpdateNotification from './components/UpdateNotification';
 
 const PrivateRoute = ({ children }: { children: React.ReactElement }) => { 
   const { token, loading } = useAuth();
@@ -51,6 +52,7 @@ function App() {
             <WebSocketProvider>
               <Toaster position="top-right" />
               <OfflineBanner />
+              <UpdateNotification />
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />

@@ -1,10 +1,10 @@
-// Service Worker pour PWA et notifications push
+// Service Worker pour PWA
 const CACHE_NAME = 'app-cache-v1';
 
 // Installation
 self.addEventListener('install', (event) => {
   console.log('Service Worker installé');
-  self.skipWaiting();
+  self.skipWaiting(); // Activer immédiatement le nouveau worker
 });
 
 // Activation
@@ -21,6 +21,15 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  // Prendre le contrôle immédiatement
+  event.waitUntil(clients.claim());
+});
+
+// Gestion des messages
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Gestion des notifications push
@@ -80,7 +89,7 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Interception des requêtes pour le cache
+// Interception des requêtes
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {

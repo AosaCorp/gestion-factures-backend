@@ -4,39 +4,50 @@ import App from './App';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
 
-// Enregistrement du service worker pour PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(registration => {
-        console.log('✅ Service Worker enregistré:', registration);
-        
-        // Vérifier les mises à jour
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('🔄 Nouvelle version disponible');
-                // Afficher une notification discrète au lieu d'une popup intrusive
-                const notification = document.createElement('div');
-                notification.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 cursor-pointer hover:bg-blue-700';
-                notification.innerHTML = '🔄 Nouvelle version disponible. Cliquez pour mettre à jour.';
-                notification.onclick = () => {
-                  window.location.reload();
-                };
-                document.body.appendChild(notification);
-                setTimeout(() => notification.remove(), 10000);
-              }
-            });
+/**
+ * Enregistre le Service Worker avec gestion des erreurs
+ */
+const registerServiceWorker = async () => {
+  if (!('serviceWorker' in navigator)) {
+    console.log('⚠️ Service Worker non supporté');
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    console.log('✅ Service Worker enregistré:', registration.scope);
+
+    // Attendre que le Service Worker soit actif
+    if (registration.active) {
+      console.log('✅ Service Worker actif');
+    }
+
+    // Vérifier les mises à jour silencieusement (sans notification intrusive)
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      if (newWorker) {
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('🔄 Nouvelle version disponible');
+            // Mettre à jour silencieusement sans rafraîchir la page
+            // L'utilisateur verra les changements au prochain rafraîchissement
           }
         });
-      })
-      .catch(error => {
-        console.log('❌ Erreur Service Worker:', error);
-      });
-  });
-}
+      }
+    });
+
+    // Vérifier les mises à jour périodiquement (toutes les heures)
+    setInterval(() => {
+      registration.update().catch(err => console.log('Erreur vérification mise à jour:', err));
+    }, 60 * 60 * 1000);
+
+  } catch (error) {
+    console.error('❌ Erreur enregistrement Service Worker:', error);
+  }
+};
+
+// Enregistrer le Service Worker au démarrage
+registerServiceWorker();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
