@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    name: Déployer Backend sur Render
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy to Render
+        uses: johnbeynon/render-deploy-action@v1
+        with:
+          service-id: ${{ secrets.RENDER_BACKEND_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true
+
+  deploy-frontend:
+    name: Déployer Frontend sur Render
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      
+      - name: Deploy to Render
+        uses: johnbeynon/render-deploy-action@v1
+        with:
+          service-id: ${{ secrets.RENDER_FRONTEND_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true
