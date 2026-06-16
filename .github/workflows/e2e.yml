@@ -5,11 +5,16 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   test-e2e:
     name: Tests end-to-end
     runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
     
     steps:
       - name: Checkout code
@@ -35,7 +40,7 @@ jobs:
       - name: Install Playwright browsers
         run: |
           cd frontend
-          npx playwright install chromium
+          npx playwright install --with-deps ${{ matrix.browser }}
       
       - name: Run backend server
         run: |
@@ -55,11 +60,20 @@ jobs:
       - name: Run E2E tests
         run: |
           cd frontend
-          npx playwright test
+          npx playwright test --project=${{ matrix.browser }}
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5173
       
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.browser }}
           path: frontend/playwright-report/
+      
+      - name: Upload test results JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}.json
+          path: frontend/test-results.json

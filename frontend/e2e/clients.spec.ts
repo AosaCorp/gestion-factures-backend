@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Gestion des clients', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:5174/login');
+    await page.goto('/login');
     await page.fill('input[type="email"]', 'admin@example.com');
     await page.fill('input[type="password"]', 'admin123');
     await page.click('button[type="submit"]');
