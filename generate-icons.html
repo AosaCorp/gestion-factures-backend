@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Générateur d'icônes PWA</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .preview { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
+        .preview-item { text-align: center; border: 1px solid #ccc; padding: 10px; border-radius: 8px; }
+        canvas { border: 1px solid #ddd; background: #f0f0f0; }
+        button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #2563eb; }
+        input { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎨 Générateur d'icônes PWA</h1>
+    
+    <div>
+        <label>Choisir une image : </label>
+        <input type="file" id="imageUpload" accept="image/*">
+    </div>
+    
+    <div>
+        <label>Couleur de fond : </label>
+        <input type="color" id="bgColor" value="#3b82f6">
+        <label style="margin-left: 20px;">Couleur texte : </label>
+        <input type="color" id="textColor" value="#ffffff">
+    </div>
+    
+    <div>
+        <label>Texte (optionnel) : </label>
+        <input type="text" id="overlayText" placeholder="Factures" value="Factures">
+    </div>
+    
+    <div>
+        <button id="downloadBtn">📥 Télécharger toutes les icônes</button>
+    </div>
+    
+    <div class="preview" id="preview"></div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        let currentImage = null;
+        
+        document.getElementById('imageUpload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        currentImage = img;
+                        generatePreviews();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        function generatePreviews() {
+            const previewDiv = document.getElementById('preview');
+            previewDiv.innerHTML = '';
+            
+            sizes.forEach(size => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                canvas.style.width = '64px';
+                canvas.style.height = '64px';
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Fond
+                ctx.fillStyle = document.getElementById('bgColor').value;
+                ctx.fillRect(0, 0, size, size);
+                
+                if (currentImage) {
+                    // Dessiner l'image redimensionnée
+                    const minDim = Math.min(currentImage.width, currentImage.height);
+                    const srcX = (currentImage.width - minDim) / 2;
+                    const srcY = (currentImage.height - minDim) / 2;
+                    ctx.drawImage(currentImage, srcX, srcY, minDim, minDim, 0, 0, size, size);
+                }
+                
+                // Texte
+                const text = document.getElementById('overlayText').value;
+                if (text) {
+                    ctx.fillStyle = document.getElementById('textColor').value;
+                    ctx.font = `bold ${size * 0.2}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(text, size / 2, size / 2);
+                }
+                
+                const div = document.createElement('div');
+                div.className = 'preview-item';
+                div.innerHTML = `
+                    <canvas width="${size}" height="${size}" style="width:64px;height:64px"></canvas>
+                    <div>${size}x${size}</div>
+                    <button class="download-single" data-size="${size}">💾</button>
+                `;
+                
+                // Copier le canvas
+                const previewCanvas = div.querySelector('canvas');
+                previewCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                
+                // Bouton téléchargement individuel
+                div.querySelector('.download-single').addEventListener('click', () => {
+                    const link = document.createElement('a');
+                    link.download = `icon-${size}x${size}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                });
+                
+                previewDiv.appendChild(div);
+            });
+        }
+        
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            sizes.forEach(size => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = document.getElementById('bgColor').value;
+                ctx.fillRect(0, 0, size, size);
+                
+                if (currentImage) {
+                    const minDim = Math.min(currentImage.width, currentImage.height);
+                    const srcX = (currentImage.width - minDim) / 2;
+                    const srcY = (currentImage.height - minDim) / 2;
+                    ctx.drawImage(currentImage, srcX, srcY, minDim, minDim, 0, 0, size, size);
+                }
+                
+                const text = document.getElementById('overlayText').value;
+                if (text) {
+                    ctx.fillStyle = document.getElementById('textColor').value;
+                    ctx.font = `bold ${size * 0.2}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(text, size / 2, size / 2);
+                }
+                
+                const link = document.createElement('a');
+                link.download = `icon-${size}x${size}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+            
+            setTimeout(() => {
+                alert('✅ Toutes les icônes ont été téléchargées !\n📁 Placez-les dans frontend/public/icons/');
+            }, 1000);
+        }c);
+        
+        // Générer des previews par défaut
+        generatePreviews();
+    </script>
+</body>
+</html>

@@ -65,7 +65,9 @@ exports.createInvoice = async (req, res) => {
       status: 'draft',
       createdBy: req.user.id
     }, { transaction: t });
-
+    
+    const webhookTrigger = require('../middleware/webhookTrigger');
+    
     await t.commit();
     res.status(201).json(invoice);
   } catch (error) {
@@ -74,6 +76,8 @@ exports.createInvoice = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
+
+
 
 exports.getInvoices = async (req, res) => {
   try {
