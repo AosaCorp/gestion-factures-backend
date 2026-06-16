@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import ThemeToggle from './ThemeToggle';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import ThemeToggle from '../components/ThemeToggle';
 
 describe('ThemeToggle', () => {
   it('devrait rendre le composant', () => {
@@ -22,7 +23,6 @@ describe('ThemeToggle', () => {
     );
     const button = screen.getByRole('button');
     await userEvent.click(button);
-    // Le thème devrait changer
     expect(document.documentElement.classList.contains('dark')).toBeDefined();
   });
 });
