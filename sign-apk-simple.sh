@@ -1,8 +1,8 @@
 #!/bin/bash
 
-PASSWORD="android"  # ← Change ici si tu as utilisé un autre mot de passe
+PASSWORD="android"
 
-echo "🔑 Signature avec jarsigner..."
+echo "🔑 Signature avec SHA256..."
 
 APK_DEBUG=$(find android/app/build/outputs/apk -name "*.apk" 2>/dev/null | head -1)
 
@@ -13,9 +13,10 @@ fi
 
 echo "📦 APK: $APK_DEBUG"
 
+# Signer avec SHA256
 jarsigner -verbose \
-    -sigalg SHA1withRSA \
-    -digestalg SHA1 \
+    -sigalg SHA256withRSA \
+    -digestalg SHA256 \
     -keystore android/my-release-key.keystore \
     -storepass "$PASSWORD" \
     -keypass "$PASSWORD" \
@@ -26,11 +27,12 @@ if [ $? -eq 0 ]; then
     mkdir -p android/app/build/outputs/apk/release
     APK_SIGNED="android/app/build/outputs/apk/release/app-release-signed.apk"
     cp "$APK_DEBUG" "$APK_SIGNED"
+    
     echo "✅ APK signé: $APK_SIGNED"
     
-    # Vérifier
-    jarsigner -verify "$APK_SIGNED"
+    # Vérifier avec verbose
+    echo "🔍 Vérification..."
+    jarsigner -verify -verbose "$APK_SIGNED" | grep "jar verified"
 else
-    echo "❌ Échec - Mot de passe incorrect ?"
-    echo "💡 Le mot de passe est celui saisi lors de keytool"
+    echo "❌ Échec de la signature"
 fi
