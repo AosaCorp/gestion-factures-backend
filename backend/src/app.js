@@ -30,24 +30,48 @@ dotenv.config();
 
 const app = express();
 
-// Configuration CORS pour Vercel
+// Configuration CORS - Autoriser toutes les origines en développement
+// et les domaines connus en production
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5001',
   'https://gestion-factures-frontend.vercel.app',
-  process.env.FRONTEND_URL
+  'https://gestion-factures-frontend-three.vercel.app',
+  // Ajouter dynamiquement l'URL Vercel (variable d'environnement)
+  process.env.FRONTEND_URL,
+  process.env.VERCEL_URL
 ].filter(Boolean);
+
+// Ajouter toutes les URLs Vercel (wildcard pour les sous-domaines)
+const vercelPattern = /^https:\/\/gestion-factures-frontend-[a-z0-9]+-aosacorp-c9df9049\.vercel\.app$/;
 
 app.use(cors({
   origin: function (origin, callback) {
+    // Permettre les requêtes sans origine (comme les apps mobiles)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    
+    // Vérifier si l'origine est autorisée
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
     }
+    
+    // Vérifier si l'origine correspond au pattern Vercel
+    if (vercelPattern.test(origin)) {
+      return callback(null, true);
+    }
+    
+    // En développement, tout autoriser
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    console.log(`❌ CORS bloqué: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Requested-With']
 }));
 
 app.use(express.json());
