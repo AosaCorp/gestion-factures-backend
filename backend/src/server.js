@@ -141,3 +141,14 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
+
+// Démarrer le job de sauvegarde (seulement en production)
+if (process.env.NODE_ENV === 'production') {
+  const { scheduleBackupJob, runBackupWithExternal } = require('./jobs/backupJob');
+  scheduleBackupJob();
+  
+  // Option: créer une sauvegarde initiale au démarrage
+  setTimeout(async () => {
+    await runBackupWithExternal();
+  }, 60000);
+}
